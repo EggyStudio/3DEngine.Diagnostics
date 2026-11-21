@@ -118,6 +118,18 @@ public abstract class Setting
     public Answer Reset() => TrySet(DefaultText);
 
     /// <summary>
+    /// Moves the value one step as a panel's left and right do, a toggle over, a choice to its
+    /// neighbor past the last to the first, a number by its step held to its range.
+    /// </summary>
+    /// <remarks>
+    /// The step starts from the value last set, the one <see cref="StoredText"/> gives, so a value
+    /// that waits for the next start or that the environment overrides still moves as it is
+    /// stepped. A text has no step and refuses.
+    /// </remarks>
+    /// <param name="direction">Below zero for down or before, else up or next.</param>
+    public abstract Answer Move(int direction);
+
+    /// <summary>
     /// The setting in a sentence, its value, its default where it differs, and whether the
     /// environment gives it or a value waits for the next start.
     /// </summary>
@@ -267,6 +279,30 @@ public sealed class Setting<T> : Setting where T : notnull
     /// <summary>Sets the value, or refuses one out of its range with its reason.</summary>
     /// <param name="value">The value.</param>
     public Answer TrySet(T value) => Take(value, starting: false);
+
+    /// <inheritdoc/>
+    public override Answer Move(int direction)
+    {
+        var up = direction >= 0;
+        TryParse(StoredText, out var from);
+        switch (Kind)
+        {
+            case SettingKind.Toggle:
+                return TrySet(from.Equals(true) ? "off" : "on");
+            case SettingKind.Choice:
+                var at = Array.IndexOf(Enum.GetValues(typeof(T)), from);
+                return TrySet(Choices[(at + (up ? 1 : Choices.Count - 1)) % Choices.Count]);
+            case SettingKind.Text:
+                return Answer.Fail(Answer.BadArgument, $"{Name} is text, which no step changes.");
+            default:
+                var step = Step > 0 ? Step : Kind == SettingKind.Whole ? 1 : 0.1;
+                var number = Convert.ToDouble(from, CultureInfo.InvariantCulture) + (up ? step : -step);
+                // Steps of a fraction are held to the step's own grid, so ten steps of 0.1 give 1.
+                number = Math.Round(Math.Round(number / step) * step, 9);
+                number = Math.Clamp(number, Low ?? double.MinValue, High ?? double.MaxValue);
+                return TrySet(number.ToString("R", CultureInfo.InvariantCulture));
+        }
+    }
 
     private protected override Answer Set(string text, bool starting)
     {

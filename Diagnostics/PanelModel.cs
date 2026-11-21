@@ -1,0 +1,243 @@
+namespace Diagnostics;
+
+/// <summary>What steers the settings panel, the same six from arrows and from a pad.</summary>
+public enum PanelInput
+{
+    /// <summary>To the row above, past a row of text, staying at the first.</summary>
+    Up,
+
+    /// <summary>To the row below, past a row of text, staying at the last.</summary>
+    Down,
+
+    /// <summary>A setting's value one step down or to the choice before.</summary>
+    Left,
+
+    /// <summary>A setting's value one step up or to the next choice.</summary>
+    Right,
+
+    /// <summary>Opens a page, runs an action, or turns a toggle or a choice to its next.</summary>
+    Accept,
+
+    /// <summary>Back to the page before, and from the first page out of the panel.</summary>
+    Back,
+}
+
+/// <summary>What a row of the settings panel is.</summary>
+public enum PanelRowKind
+{
+    /// <summary>A setting, its value stepped with left and right.</summary>
+    Setting,
+
+    /// <summary>A command line run on accept.</summary>
+    Action,
+
+    /// <summary>A page opened on accept.</summary>
+    Page,
+
+    /// <summary>A line of text, which is never selected.</summary>
+    Text,
+}
+
+/// <summary>A row of the settings panel as it is drawn.</summary>
+/// <param name="Kind">What the row is.</param>
+/// <param name="Label">The row's words on the left.</param>
+/// <param name="Value">
+/// A setting's value as the player set it, on the right, and empty for another row.
+/// </param>
+/// <param name="Selected">Whether the row is the one the inputs act on.</param>
+/// <param name="Pending">Whether the value takes effect at the next start.</param>
+/// <param name="Overridden">
+/// Whether the environment holds the running value, the one shown being kept for the file.
+/// </param>
+public sealed record PanelRow(PanelRowKind Kind, string Label, string Value, bool Selected, bool Pending, bool Overridden);
+
+/// <summary>A page of the settings panel, a title and the rows a host gives it.</summary>
+/// <param name="title">The page's title.</param>
+public sealed class PanelPage(string title)
+{
+    internal List<(PanelRowKind Kind, string Label, object? Target)> Entries { get; } = [];
+
+    /// <summary>The page's title.</summary>
+    public string Title { get; } = title ?? throw new ArgumentNullException(nameof(title));
+
+    /// <summary>Adds a setting's row.</summary>
+    /// <param name="setting">The setting.</param>
+    /// <param name="label">The row's words, the setting's name where none is given.</param>
+    public PanelPage Add(Setting setting, string? label = null) =>
+        With(PanelRowKind.Setting, label ?? (setting ?? throw new ArgumentNullException(nameof(setting))).Name, setting);
+
+    /// <summary>Adds a row that runs a command line on accept.</summary>
+    /// <param name="label">The row's words.</param>
+    /// <param name="line">The line the registry runs.</param>
+    public PanelPage AddAction(string label, string line) =>
+        With(PanelRowKind.Action, label, line ?? throw new ArgumentNullException(nameof(line)));
+
+    /// <summary>Adds a row that opens another page on accept.</summary>
+    /// <param name="page">The page.</param>
+    public PanelPage AddPage(PanelPage page) =>
+        With(PanelRowKind.Page, (page ?? throw new ArgumentNullException(nameof(page))).Title, page);
+
+    /// <summary>Adds a line of text.</summary>
+    /// <param name="text">The text.</param>
+    public PanelPage AddText(string text) => With(PanelRowKind.Text, text, null);
+
+    private PanelPage With(PanelRowKind kind, string label, object? target)
+    {
+        Entries.Add((kind, label ?? throw new ArgumentNullException(nameof(label)), target));
+        return this;
+    }
+}
+
+/// <summary>
+/// The settings panel's content with no drawing, pages of rows steered by six inputs, so arrows
+/// and a pad serve alike.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The first page holds a page for each first word of the registry's settings' names, so
+/// <c>render.vsync</c> and <c>render.scale</c> stand on the page <c>render</c> as <c>vsync</c> and
+/// <c>scale</c>, a setting of one word standing on the page <c>general</c>, and under them the rows
+/// of <see cref="Root"/>, which a host fills with pages and actions of its own. The pages of
+/// settings are read from the registry as they are shown, so a setting added later appears.
+/// </para>
+/// <para>
+/// Repeating an input while a key or a stick is held is the host's. Every member is called on the
+/// host's thread.
+/// </para>
+/// </remarks>
+public sealed class PanelModel
+{
+    private readonly Registry _registry;
+    private readonly List<(PanelPage Page, int Selected)> _path = [];
+
+    /// <summary>Makes a panel over a registry's settings.</summary>
+    /// <param name="registry">The registry.</param>
+    /// <param name="title">The first page's title.</param>
+    public PanelModel(Registry registry, string title = "Settings")
+    {
+        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        Root = new PanelPage(title);
+    }
+
+    /// <summary>Whether the panel is shown, which the panel's key turns over.</summary>
+    public bool Open { get; set; }
+
+    /// <summary>The host's own rows of the first page, under the pages of settings.</summary>
+    public PanelPage Root { get; }
+
+    /// <summary>The shown page's title.</summary>
+    public string Title => _path.Count == 0 ? Root.Title : _path[^1].Page.Title;
+
+    /// <summary>
+    /// The index of the selected row among <see cref="Rows"/>, or -1 where none can be.
+    /// </summary>
+    public int Selected
+    {
+        get
+        {
+            var entries = Entries();
+            return Settle(entries, _path.Count == 0 ? _rootSelected : _path[^1].Selected);
+        }
+    }
+
+    /// <summary>
+    /// What the last accept or step answered, a refusal's reason among it, or null before any.
+    /// </summary>
+    public Answer? Answer { get; private set; }
+
+    /// <summary>The shown page's rows.</summary>
+    public IReadOnlyList<PanelRow> Rows
+    {
+        get
+        {
+            var entries = Entries();
+            var selected = Selected;
+            return entries.Select((entry, i) => entry.Target is Setting setting
+                ? new PanelRow(entry.Kind, entry.Label, setting.StoredText, i == selected, setting.PendingText is not null, setting.Overridden)
+                : new PanelRow(entry.Kind, entry.Label, "", i == selected, false, false)).ToList();
+        }
+    }
+
+    private int _rootSelected;
+
+    /// <summary>Takes an input.</summary>
+    /// <param name="input">The input.</param>
+    public void Press(PanelInput input)
+    {
+        var entries = Entries();
+        var at = Selected;
+        switch (input)
+        {
+            case PanelInput.Up or PanelInput.Down:
+                var step = input == PanelInput.Up ? -1 : 1;
+                for (var i = at + step; i >= 0 && i < entries.Count; i += step)
+                    if (entries[i].Kind != PanelRowKind.Text)
+                    {
+                        Select(i);
+                        break;
+                    }
+
+                break;
+            case PanelInput.Back:
+                if (_path.Count == 0) Open = false;
+                else _path.RemoveAt(_path.Count - 1);
+                break;
+            case PanelInput.Left or PanelInput.Right when at >= 0 && entries[at].Target is Setting setting:
+                Answer = setting.Move(input == PanelInput.Left ? -1 : 1);
+                break;
+            case PanelInput.Accept when at >= 0:
+                Select(at);
+                switch (entries[at].Target)
+                {
+                    case Setting { Kind: SettingKind.Toggle or SettingKind.Choice } choice:
+                        Answer = choice.Move(1);
+                        break;
+                    case string line:
+                        Answer = _registry.Run(line);
+                        break;
+                    case PanelPage page:
+                        _path.Add((page, 0));
+                        break;
+                }
+
+                break;
+        }
+    }
+
+    private void Select(int index)
+    {
+        if (_path.Count == 0) _rootSelected = index;
+        else _path[^1] = (_path[^1].Page, index);
+    }
+
+    // The selected row is held to the page as it stands, since its settings can have changed, and
+    // moved off a row of text to the nearest row after or before it.
+    private static int Settle(List<(PanelRowKind Kind, string Label, object? Target)> entries, int wanted)
+    {
+        wanted = Math.Clamp(wanted, 0, Math.Max(0, entries.Count - 1));
+        for (var i = wanted; i < entries.Count; i++)
+            if (entries[i].Kind != PanelRowKind.Text) return i;
+        for (var i = wanted - 1; i >= 0; i--)
+            if (entries[i].Kind != PanelRowKind.Text) return i;
+        return -1;
+    }
+
+    private List<(PanelRowKind Kind, string Label, object? Target)> Entries()
+    {
+        if (_path.Count > 0) return _path[^1].Page.Entries;
+        var entries = new List<(PanelRowKind, string, object?)>();
+        foreach (var group in _registry.Settings.GroupBy(Group).OrderBy(group => group.Key, StringComparer.Ordinal))
+        {
+            // The page is made again each time, with the settings the registry holds then.
+            var page = new PanelPage(group.Key);
+            foreach (var setting in group) page.Add(setting, setting.Name.Contains('.') ? setting.Name[(group.Key.Length + 1)..] : setting.Name);
+            entries.Add((PanelRowKind.Page, group.Key, page));
+        }
+
+        entries.AddRange(Root.Entries);
+        return entries;
+    }
+
+    private static string Group(Setting setting) =>
+        setting.Name.IndexOf('.') is var dot and > 0 ? setting.Name[..dot] : "general";
+}

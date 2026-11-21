@@ -9,8 +9,8 @@ engine, and an engine binds it by filling the hooks it declares and drawing what
 
 The core, `3DEngine.Diagnostics`, stands on .NET alone with no package and no graphics reference,
 which a test of its own holds. `3DEngine.Diagnostics.ImGui` beside it is the one project that
-references Dear ImGui, for a host that has an ImGui context, and holds no type yet. The overlay's
-and the panel's content, the keys and the drawing with ImGui are not implemented yet.
+references Dear ImGui, for a host that has an ImGui context, and holds no type yet, so drawing the
+console and the panel with ImGui is not implemented yet.
 
 ## What it holds
 
@@ -26,6 +26,9 @@ and the panel's content, the keys and the drawing with ImGui are not implemented
 | `ConsoleModel` | A console's content with no drawing, a line in and lines out, the history, completion by prefix and a hint |
 | `ConsoleLine` and `ConsoleLevel` | A line a console shows and whether it was entered, plain, a warning or an error |
 | `Completion` | What a typed start completes to, the line and the candidates |
+| `OverlayModel`, `OverlayPlace` and `FrameStats` | The debug overlay's content with no drawing, named sections of lines a host fills in four places, asked four times a second, the last 240 frames' times and their statistics, the last, the average and the 1% low |
+| `PanelModel`, `PanelPage`, `PanelRow`, `PanelRowKind` and `PanelInput` | The settings panel's content with no drawing, a page for each first word of the settings' names and a host's own pages of settings, actions and text, steered by up, down, left, right, accept and back |
+| `DiagnosticKeys` and `KeyAction` | The five keys as text settings a player rebinds, F1 hiding the interface, F2 asking for a screenshot, F3 the overlay, F4 the panel and F5 the console, each taken on its key's release and never by a chord |
 | `SettingsFile` | The settings kept across runs in one text file of name and value lines, only the values that differ from their defaults, with unknown names kept |
 
 ## Taking it into an engine
@@ -107,6 +110,43 @@ It stands on these conventions.
   setting's sentence and `list` say so.
 - `SettingsFile.For` names a game's file, `settings.txt` in a folder of the game's name under the
   system's folder of applications' data, and a host with a folder of its own gives any path.
+
+### The overlay, the panel and the keys
+
+A host that shows the overlay and the panel makes the three models once, gives the keys every key
+that goes down and comes up by the host's own name for it, and draws what the models hold while
+they are shown.
+
+```csharp
+var overlay = new OverlayModel();
+overlay.AddSection("scene", OverlayPlace.Left, () => [$"entities {host.Entities}"]);
+overlay.AddSection("passes", OverlayPlace.Right, host.PassTimings, detail: true);
+var panel = new PanelModel(registry);
+panel.Root.AddAction("Quit", "game.quit");
+var keys = new DiagnosticKeys(registry) { Overlay = overlay, Panel = panel, Console = console };
+keys.ScreenshotAsked += host.Screenshot;
+
+// Each frame, with the frame's time in seconds.
+overlay.Frame(host.FrameSeconds);
+foreach (var key in host.KeysPressed) keys.KeyDown(key, host.FieldIsTyping);
+foreach (var key in host.KeysReleased) keys.KeyUp(key);
+if (panel.Open && host.Pressed("Down")) panel.Press(PanelInput.Down);
+```
+
+- An action is taken as its key comes up where no other key went down or was held meanwhile, so a
+  chord holding one of the five keys stays the program's. A key whose name holds `Shift` is no
+  other key, and Shift with the overlay's key turns the overlay's detail over.
+- The screenshot is the host's. The keys raise `DiagnosticKeys.ScreenshotAsked`, and the host
+  reads `DiagnosticKeys.InterfaceHidden` before it draws its interface.
+- The overlay holds one line of its own, the frame's rate and statistics at the head. Every other
+  number is a section's the host adds, drawn in the section's place, `OverlayPlace.Head` and
+  `OverlayPlace.Beside` on the first rows and `OverlayPlace.Left` and `OverlayPlace.Right` as two
+  columns under them, with `OverlayModel.FrameTimes` as a strip of the last 240 frames in
+  milliseconds.
+- The panel takes six inputs and repeats none, so a held key or stick is repeated by the host. A
+  row is drawn from `PanelRow`, its label, its value and its marks for a value that waits for the
+  next start and one the environment overrides.
+- The overlay, the panel and the keys are the host's thread's.
 
 ### What a generator emits
 

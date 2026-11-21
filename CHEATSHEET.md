@@ -3,7 +3,8 @@
 Every public type of `3DEngine.Diagnostics` with its members, a line each of its declaration and
 the first sentence of its summary, in the order the README first names it. A host adds its
 `Command`s and `Setting`s to a `Registry`, runs lines through a `ConsoleModel` over it and keeps the
-settings in a `SettingsFile`. The README's section Binding it in your engine gives the conventions,
+settings in a `SettingsFile`, and shows an `OverlayModel` and a `PanelModel` that `DiagnosticKeys`
+turn over. The README's section Binding it in your engine gives the conventions,
 the calls safe from any thread among them, and the smallest binding. The list is written by
 `Cheatsheet.Write` from the built library, and this text by hand.
 
@@ -80,6 +81,7 @@ string Takes { get; }                                    // What the value takes
 Answer TrySet(string text);                              // Sets the value from text, or refuses it with its reason
 Answer TryStart(string text);                            // Sets the value from text as the program starts, so a value for the next start takes effect
 Answer Reset();                                          // Sets the value to its default, as TrySet sets one
+Answer Move(int direction);                              // Moves the value one step as a panel's left and right do, a toggle over, a choice to its neighbor past the last to the first, a number by its step held to its range
 string Describe();                                       // The setting in a sentence, its value, its default where it differs, and whether the environment gives it or a value waits for the next start
 event Action<Setting>? Changed;                          // Raised after a set changed the running or the stored value
 
@@ -99,6 +101,7 @@ string StoredText { get; }                               // The value the settin
 IReadOnlyList<string> Choices { get; }                   // The texts the value takes where they are few, an enum's names or off and on
 string Takes { get; }                                    // What the value takes in words, its range or its choices, empty for any text
 Answer TrySet(T value);                                  // Sets the value, or refuses one out of its range with its reason
+Answer Move(int direction);                              // Moves the value one step as a panel's left and right do, a toggle over, a choice to its neighbor past the last to the first, a number by its step held to its range
 
 enum SettingKind                                         // What a setting's value is, which decides how a console reads it and a panel steps it
 Toggle = 0,                                              // On or off, a Boolean
@@ -141,6 +144,92 @@ record Completion                                        // What a typed start o
 Completion(string Text, IReadOnlyList<string> Candidates);
 string Text { get; init; }                               // The line with the common start of every candidate in place of its last word, followed by a space where one candidate is left
 IReadOnlyList<string> Candidates { get; init; }          // The names or the values the last word could be, in order
+
+class OverlayModel                                       // The debug overlay's content with no drawing, named sections of lines a host fills, the last frames' times and their statistics
+int StripFrames = 240;                                   // How many frame times are kept, the strip's width in frames
+double RefreshSeconds = 0.25;                            // How many seconds pass between two askings of the sections
+OverlayModel();                                          // Makes an overlay holding its own section, frame
+bool Shown { get; set; }                                 // Whether the overlay is shown, which the overlay's key turns over
+bool Detailed { get; set; }                              // Whether the sections added as detail are shown too, which Shift with the overlay's key turns over
+IReadOnlyList<float> FrameTimes { get; }                 // The kept frame times in milliseconds, oldest first, 240 at most
+FrameStats Stats { get; }                                // The statistics of the kept frame times, zeros before the first frame
+void AddSection(string name, OverlayPlace place, Func<IEnumerable<string>> lines, bool detail = false);  // Adds a section of lines, in the place of one of the same name where there is one
+bool RemoveSection(string name);                         // Takes a section out, and says whether there was one
+void Frame(double seconds);                              // Keeps a frame's time and asks the sections for their lines again where a quarter of a second has passed since they were asked
+void Refresh();                                          // Asks the sections for their lines at once
+IReadOnlyList<string> Lines(OverlayPlace place);         // The lines of a place as the sections last gave them, in the sections' order
+
+enum OverlayPlace                                        // Where on the screen a section of the overlay's lines stands
+Head = 0,                                                // The first lines at the top left, the version and the frame's rate
+Beside = 1,                                              // Beside the head, to its right on the same rows
+Left = 2,                                                // The left column under the head
+Right = 3,                                               // The right column
+
+record struct FrameStats                                 // What the kept frame times say of the frame's rate
+FrameStats(double Milliseconds, double AverageMilliseconds, double LowFramesPerSecond);
+double Milliseconds { get; init; }                       // The last frame's time in milliseconds
+double AverageMilliseconds { get; init; }                // The mean time of the kept frames in milliseconds
+double LowFramesPerSecond { get; init; }                 // The 1% low, the rate in frames a second of the mean time of the slowest hundredth of the kept frames, one frame at least
+
+class PanelModel                                         // The settings panel's content with no drawing, pages of rows steered by six inputs, so arrows and a pad serve alike
+PanelModel(Registry registry, string title = "Settings");  // Makes a panel over a registry's settings
+bool Open { get; set; }                                  // Whether the panel is shown, which the panel's key turns over
+PanelPage Root { get; }                                  // The host's own rows of the first page, under the pages of settings
+string Title { get; }                                    // The shown page's title
+int Selected { get; }                                    // The index of the selected row among Rows, or -1 where none can be
+Answer? Answer { get; }                                  // What the last accept or step answered, a refusal's reason among it, or null before any
+IReadOnlyList<PanelRow> Rows { get; }                    // The shown page's rows
+void Press(PanelInput input);                            // Takes an input
+
+class PanelPage                                          // A page of the settings panel, a title and the rows a host gives it
+PanelPage(string title);
+string Title { get; }                                    // The page's title
+PanelPage Add(Setting setting, string? label = null);    // Adds a setting's row
+PanelPage AddAction(string label, string line);          // Adds a row that runs a command line on accept
+PanelPage AddPage(PanelPage page);                       // Adds a row that opens another page on accept
+PanelPage AddText(string text);                          // Adds a line of text
+
+record PanelRow                                          // A row of the settings panel as it is drawn
+PanelRow(PanelRowKind Kind, string Label, string Value, bool Selected, bool Pending, bool Overridden);
+PanelRowKind Kind { get; init; }                         // What the row is
+string Label { get; init; }                              // The row's words on the left
+string Value { get; init; }                              // A setting's value as the player set it, on the right, and empty for another row
+bool Selected { get; init; }                             // Whether the row is the one the inputs act on
+bool Pending { get; init; }                              // Whether the value takes effect at the next start
+bool Overridden { get; init; }                           // Whether the environment holds the running value, the one shown being kept for the file
+
+enum PanelRowKind                                        // What a row of the settings panel is
+Setting = 0,                                             // A setting, its value stepped with left and right
+Action = 1,                                              // A command line run on accept
+Page = 2,                                                // A page opened on accept
+Text = 3,                                                // A line of text, which is never selected
+
+enum PanelInput                                          // What steers the settings panel, the same six from arrows and from a pad
+Up = 0,                                                  // To the row above, past a row of text, staying at the first
+Down = 1,                                                // To the row below, past a row of text, staying at the last
+Left = 2,                                                // A setting's value one step down or to the choice before
+Right = 3,                                               // A setting's value one step up or to the next choice
+Accept = 4,                                              // Opens a page, runs an action, or turns a toggle or a choice to its next
+Back = 5,                                                // Back to the page before, and from the first page out of the panel
+
+class DiagnosticKeys                                     // The five keys as actions a player rebinds, each a text setting holding a key's name, and what they turn over
+DiagnosticKeys(Registry registry);                       // Makes the keys and adds their five settings to a registry
+OverlayModel? Overlay { get; init; }                     // The overlay the overlay's key turns over, or null for none
+PanelModel? Panel { get; init; }                         // The panel the panel's key turns over, or null for none
+ConsoleModel? Console { get; init; }                     // The console the console's key turns over, or null for none
+bool InterfaceHidden { get; set; }                       // Whether the program's interface is hidden, which a host reads before it draws it
+Setting<string> KeyOf(KeyAction action);                 // The setting that holds an action's key
+void KeyDown(string key, bool typing = false);           // Takes a key that went down
+KeyAction? KeyUp(string key);                            // Takes a key that came up, and gives the action it took, or null
+void Take(KeyAction action, bool shift = false);         // Takes an action with no key, as a pad's button or a command does
+event Action? ScreenshotAsked;                           // Raised when a screenshot is asked for, which the host takes its own way
+
+enum KeyAction                                           // What one of the five keys does, the same on every host
+HideInterface = 0,                                       // Hides and shows the program's interface, F1 by default
+Screenshot = 1,                                          // Asks the host for a screenshot, F2 by default
+Overlay = 2,                                             // Shows and hides the debug overlay, with Shift its detail, F3 by default
+Panel = 3,                                               // Opens and closes the settings panel, F4 by default
+Console = 4,                                             // Opens and closes the console, F5 by default
 
 class SettingsFile                                       // The settings kept across runs in one text file, a line for each setting whose value differs from its default
 SettingsFile(string path);                               // Makes the file at a path, which is read and written when asked
