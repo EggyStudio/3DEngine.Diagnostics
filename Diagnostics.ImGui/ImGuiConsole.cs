@@ -7,10 +7,10 @@ namespace Diagnostics;
 /// <remarks>
 /// <para>
 /// The console is a window across the top of the host's window, a plain list of every line, the
-/// field the line is entered in and the hint under it. While the model's popup shows, the
-/// candidates stand in a box above the field, as wide as the field, six rows at most with the
-/// selected one banded, and the ghost text follows what is typed in a dimmed color. Up and down
-/// move the selection or walk the history, Tab fills the selected candidate and Enter runs the
+/// field the line is entered in and the hint under it where there is one. While the model's popup
+/// shows, the candidates stand in a box above the field, as wide as the field, six rows at most
+/// with the selected one banded, and the ghost text follows what is typed in a dimmed color. Up and
+/// down move the selection or walk the history, Tab fills the selected candidate and Enter runs the
 /// line, all by the model, while the field has the keyboard.
 /// </para>
 /// <para>
@@ -60,18 +60,21 @@ public sealed class ImGuiConsole(ConsoleModel model)
         ImGui.SetNextWindowSize(new Vector2(window.X, MathF.Round(window.Y * Math.Clamp(Height, 0.1f, 1f))), ImGuiCond.Always);
         if (ImGui.Begin("Console##diagnostics", Window))
         {
-            Lines();
-            Entry();
+            // The hint's row is the window's only where there is a hint, so a console with none
+            // has no empty strip under the field.
+            var hint = _model.Hint;
+            Lines(hint.Length > 0);
+            Entry(hint);
         }
 
         ImGui.End();
         _wasOpen = true;
     }
 
-    private void Lines()
+    private void Lines(bool hinted)
     {
         // The lines take what the window has left over the field and the hint under it.
-        var room = ImGui.GetContentRegionAvail().Y - ImGui.GetFrameHeightWithSpacing() - ImGui.GetTextLineHeightWithSpacing();
+        var room = ImGui.GetContentRegionAvail().Y - ImGui.GetFrameHeightWithSpacing() - (hinted ? ImGui.GetTextLineHeightWithSpacing() : 0f);
         if (ImGui.BeginChild("##lines", new Vector2(0f, MathF.Max(room, ImGui.GetTextLineHeight())), ImGuiChildFlags.None, ImGuiWindowFlags.HorizontalScrollbar))
         {
             foreach (var line in _model.Lines())
@@ -97,7 +100,7 @@ public sealed class ImGuiConsole(ConsoleModel model)
         ImGui.EndChild();
     }
 
-    private unsafe void Entry()
+    private unsafe void Entry(string hint)
     {
         ImGui.SetNextItemWidth(-1f);
         if (!_wasOpen) ImGui.SetKeyboardFocusHere();
@@ -113,7 +116,7 @@ public sealed class ImGuiConsole(ConsoleModel model)
 
         Typing = ImGui.IsItemActive();
         var (min, max) = (ImGui.GetItemRectMin(), ImGui.GetItemRectMax());
-        ImGui.TextDisabled(_model.Hint is { Length: > 0 } hint ? hint : " ");
+        if (hint.Length > 0) ImGui.TextDisabled(hint);
 
         if (!_model.PopupShown) return;
         var list = ImGui.GetForegroundDrawList();

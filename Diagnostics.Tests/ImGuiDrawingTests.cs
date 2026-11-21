@@ -177,6 +177,35 @@ public sealed class ImGuiDrawingTests
     }
 
     [Fact]
+    public void The_Console_Leaves_No_Strip_Under_Its_Field_Where_There_Is_No_Hint()
+    {
+        var registry = Make();
+        var console = new ConsoleModel(registry) { Open = true };
+        var drawn = new ImGuiConsole(console);
+        using var frames = new ImGuiFrames(960, 540);
+        void Draw() => drawn.Draw(frames.Size);
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+
+        // The window ends at the 216th row. Going up from the row over its border through the
+        // window's own color reaches the field, and what lies between is the strip under it.
+        var height = (int)MathF.Round(540 * 0.4f);
+        var ground = frames.Picture[((height - 3) * 960 + 480) * 4];
+        bool Plain(int y) => Enumerable.Range(16, 928).All(x => frames.Picture[(y * 960 + x) * 4] == ground);
+        var strip = 0;
+        while (Plain(height - 2 - strip)) strip++;
+        Assert.True(strip <= ImGui.GetStyle().WindowPadding.Y + 2, $"{strip} rows under the field");
+        Assert.Equal("", console.Hint);
+
+        // A hint takes its row where the name typed has one, inside the window.
+        frames.Type("render.vsync", Draw);
+        frames.Frame(Draw);
+        var lower = 0;
+        while (Plain(height - 2 - lower)) lower++;
+        Assert.True(console.Hint.Length > 0 && lower is > 0 and <= 10, $"{lower} rows under a hint");
+    }
+
+    [Fact]
     public void The_Console_Is_Drawn_With_Its_Popup_And_Ghost_For_A_Picture()
     {
         var registry = Make();

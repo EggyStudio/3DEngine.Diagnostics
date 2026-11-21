@@ -12,7 +12,8 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 The console as the ImGui library draws it in ImGui's light style with no device, a plain list of
 every line with entered lines dimmed, a refused set in red and a host's warning in orange, the popup
 of six candidates above the field as wide as the field with the second selected, the ghost text
-nder.quality after the typed re, and the window cut out with a white margin around it.
+nder.quality after the typed re, the window cut out with a white margin around it and no empty strip
+under the field.
 
 ![](.github/assets/readings/2026-11-21-item-4-panel-page.webp)
 The settings panel on the page of the settings named render, scale at 1.25 selected with its value
@@ -21,6 +22,10 @@ window cut out with a white margin around it.
 
 Commits that day
 
+- `c3a5403` The console becomes a plain list of every line with a popup of candidates above the
+  field, the names that begin with the word and then those at a later dotted part, a selection that
+  up and down move, ghost text that Tab fills, and the search field and the level filters leave the
+  model and the drawer.
 - `5fc659e` The module gains an example, a console program with no window that registers three
   commands and four settings, reads and writes a settings file, runs lines from its arguments or
   standard input through the console's model and prints the answers, with tests that hold its output
