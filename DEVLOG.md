@@ -18,6 +18,9 @@ for the next start saying so.
 
 Commits that day
 
+- `539f411` The cheatsheet lists the ImGui library's two types under a heading of their own, written
+  by a second call of the writer that a test holds, and the picture of the console and the panel is
+  cut to its two windows.
 - `be8f4b1` The ImGui library draws the console with its field, history, completion and hint and the
   settings panel steered by ImGui's arrows, Enter, Escape and a pad, and the tests draw both into a
   picture on the CPU with no device.
