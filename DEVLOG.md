@@ -22,6 +22,8 @@ window cut out with a white margin around it.
 
 Commits that day
 
+- `e6feafc` The console window no longer leaves an empty strip under its field, since the hint takes
+  its row only where the line has a hint, and the picture is made again.
 - `c3a5403` The console becomes a plain list of every line with a popup of candidates above the
   field, the names that begin with the word and then those at a later dotted part, a selection that
   up and down move, ghost text that Tab fills, and the search field and the level filters leave the

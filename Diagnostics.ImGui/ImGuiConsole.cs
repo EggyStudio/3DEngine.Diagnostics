@@ -29,10 +29,12 @@ public sealed class ImGuiConsole(ConsoleModel model)
     // Enter submits, and the callbacks let Tab and the arrows change the field's own text, which
     // a field that has the keyboard otherwise keeps over the string given to it.
     private const ImGuiInputTextFlags Field = ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.CallbackCompletion
-        | ImGuiInputTextFlags.CallbackHistory;
+        | ImGuiInputTextFlags.CallbackHistory | ImGuiInputTextFlags.CallbackAlways;
 
     private readonly ConsoleModel _model = model ?? throw new ArgumentNullException(nameof(model));
     private long _seen;
+    private string _given = "";
+    private bool _pushed;
     private bool _wasOpen;
 
     /// <summary>
@@ -105,6 +107,7 @@ public sealed class ImGuiConsole(ConsoleModel model)
         ImGui.SetNextItemWidth(-1f);
         if (!_wasOpen) ImGui.SetKeyboardFocusHere();
         var typed = _model.Typed;
+        _pushed = typed != _given;
         if (ImGui.InputTextWithHint("##typed", "Enter a command or a setting", ref typed, 512, Field, Edit))
         {
             _model.Enter();
@@ -114,6 +117,7 @@ public sealed class ImGuiConsole(ConsoleModel model)
         else if (typed != _model.Typed)
             _model.Edit(typed);
 
+        _given = _model.Typed;
         Typing = ImGui.IsItemActive();
         var (min, max) = (ImGui.GetItemRectMin(), ImGui.GetItemRectMax());
         if (hint.Length > 0) ImGui.TextDisabled(hint);
@@ -164,17 +168,28 @@ public sealed class ImGuiConsole(ConsoleModel model)
     {
         var field = new ImGuiInputTextCallbackDataPtr(data);
         var current = System.Text.Encoding.UTF8.GetString(data->Buf, data->BufTextLen);
+        if (field.EventFlag == ImGuiInputTextFlags.CallbackAlways)
+        {
+            // A line the host set since the field last gave its text is the model's to keep, and
+            // the field takes it where it differs, while the keys of the frame go on from it.
+            if (_pushed) Take(field, current);
+            else if (current != _model.Typed) _model.Edit(current);
+            return 0;
+        }
+
         if (current != _model.Typed) _model.Edit(current);
         if (field.EventFlag == ImGuiInputTextFlags.CallbackCompletion) _model.Accept();
         else _model.Navigate(field.EventKey == ImGuiKey.UpArrow ? -1 : 1);
 
-        if (_model.Typed != current)
-        {
-            field.DeleteChars(0, field.BufTextLen);
-            field.InsertChars(0, _model.Typed);
-        }
-
+        Take(field, current);
         return 0;
+    }
+
+    private void Take(ImGuiInputTextCallbackDataPtr field, string current)
+    {
+        if (_model.Typed == current) return;
+        field.DeleteChars(0, field.BufTextLen);
+        field.InsertChars(0, _model.Typed);
     }
 
     // An entered line takes the style's dimmed text, a warning and an error their own colors, and

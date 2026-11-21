@@ -206,6 +206,31 @@ public sealed class ImGuiDrawingTests
     }
 
     [Fact]
+    public void A_Line_The_Host_Sets_Stays_While_The_Field_Has_The_Keyboard()
+    {
+        var registry = Make();
+        var console = new ConsoleModel(registry) { Open = true };
+        var drawn = new ImGuiConsole(console);
+        using var frames = new ImGuiFrames(960, 540);
+        void Draw() => drawn.Draw(frames.Size);
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+        frames.Type("ab", Draw);
+        Assert.True(drawn.Typing);
+        Assert.Equal("ab", console.Typed);
+
+        // The field keeps its own text while it has the keyboard, so the line the host set has to
+        // reach it, and the player's next key goes on from there.
+        console.Typed = "render.vsync";
+        frames.Frame(Draw);
+        Assert.Equal("render.vsync", console.Typed);
+        frames.Frame(Draw);
+        Assert.Equal("render.vsync", console.Typed);
+        frames.Type("!", Draw);
+        Assert.Equal("render.vsync!", console.Typed);
+    }
+
+    [Fact]
     public void The_Console_Is_Drawn_With_Its_Popup_And_Ghost_For_A_Picture()
     {
         var registry = Make();
