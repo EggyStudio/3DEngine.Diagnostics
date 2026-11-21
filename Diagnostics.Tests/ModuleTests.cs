@@ -46,6 +46,14 @@ public sealed class ModuleTests
     }
 
     [Fact]
+    public void The_Library_That_Draws_With_ImGui_Names_No_Engine_And_Is_Named_In_The_Readme()
+    {
+        var drawing = Assembly.Load(Library + ".ImGui");
+        var fault = ModuleChecks.EngineNameFault(drawing) ?? ModuleChecks.UnnamedFault(drawing, Readme);
+        Assert.True(fault is null, fault);
+    }
+
+    [Fact]
     public void The_Readme_Names_Every_Public_Type()
     {
         var fault = ModuleChecks.UnnamedFault(Assembly.Load(Library), Readme);

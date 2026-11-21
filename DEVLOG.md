@@ -1,13 +1,25 @@
 # Diagnostics devlog
 
 What landed in Diagnostics, by day and newest first, with the pictures taken on the way, the
-captures the repository keeps under `.github/assets`. A line under Done names the item of
-.github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit that closed it.
+captures the repository keeps under `.github/assets` and the pictures made while an item was built,
+kept under `.github/assets/readings` as WebP files named by their day, each on the day its name
+says, and the notes written beside them as Markdown files named the same way. A line under Done
+names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit that closed it.
 
 ## 2026-11-21
 
+![](.github/assets/readings/2026-11-21-item-4-console-and-panel.webp)
+The console and the settings panel as the ImGui library draws them, in ImGui's light style at 960 by
+540 with no device and set on a white ground, the console across the top with entered lines dimmed,
+a refused set in red, a host's warning in orange and the hint of the line being entered under the
+field, and the panel under it on the page of the settings named render, the selected row banded with
+its value between the marks of left and right and a setting that waits for the next start saying so.
+
 Commits that day
 
+- `e84bde3` The core gains the overlay's model of named sections, frame times and their statistics,
+  the settings panel's model of pages steered by six inputs, a setting's step, and the five keys as
+  rebindable settings taken on release and never by a chord.
 - `02be0c9` The core gains its registry of commands and settings in one namespace, the line a
   console runs with its quoted words, settings with a range, choices, a value for the next start and
   an environment variable that overrides them, the console's model with history and completion, and

@@ -9,6 +9,7 @@
         <PackageId>3DEngine.Diagnostics.ImGui</PackageId>
         <RootNamespace>Diagnostics</RootNamespace>
         <IsPackable>false</IsPackable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
     <PropertyGroup>

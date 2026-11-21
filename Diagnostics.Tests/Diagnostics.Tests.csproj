@@ -3,6 +3,7 @@
     <!-- The libraries' tests, which need no window and no GPU. -->
     <PropertyGroup>
         <IsPackable>false</IsPackable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <AssemblyName>3DEngine.Diagnostics.Tests</AssemblyName>
         <RootNamespace>Diagnostics.Tests</RootNamespace>
     </PropertyGroup>

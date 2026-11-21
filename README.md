@@ -9,8 +9,8 @@ engine, and an engine binds it by filling the hooks it declares and drawing what
 
 The core, `3DEngine.Diagnostics`, stands on .NET alone with no package and no graphics reference,
 which a test of its own holds. `3DEngine.Diagnostics.ImGui` beside it is the one project that
-references Dear ImGui, for a host that has an ImGui context, and holds no type yet, so drawing the
-console and the panel with ImGui is not implemented yet.
+references Dear ImGui and draws the console and the settings panel, for a host that has an ImGui
+context. The overlay is drawn by the host from its model, with whatever text the host draws.
 
 ## What it holds
 
@@ -29,6 +29,7 @@ console and the panel with ImGui is not implemented yet.
 | `OverlayModel`, `OverlayPlace` and `FrameStats` | The debug overlay's content with no drawing, named sections of lines a host fills in four places, asked four times a second, the last 240 frames' times and their statistics, the last, the average and the 1% low |
 | `PanelModel`, `PanelPage`, `PanelRow`, `PanelRowKind` and `PanelInput` | The settings panel's content with no drawing, a page for each first word of the settings' names and a host's own pages of settings, actions and text, steered by up, down, left, right, accept and back |
 | `DiagnosticKeys` and `KeyAction` | The five keys as text settings a player rebinds, F1 hiding the interface, F2 asking for a screenshot, F3 the overlay, F4 the panel and F5 the console, each taken on its key's release and never by a chord |
+| `ImGuiConsole` and `ImGuiPanel` | In `3DEngine.Diagnostics.ImGui`, the console and the settings panel drawn with Dear ImGui in a host's frame, the console's field with history, completion and a hint, the panel steered by ImGui's arrows, Enter, Escape and a pad |
 | `SettingsFile` | The settings kept across runs in one text file of name and value lines, only the values that differ from their defaults, with unknown names kept |
 
 ## Taking it into an engine
@@ -147,6 +148,37 @@ if (panel.Open && host.Pressed("Down")) panel.Press(PanelInput.Down);
   row is drawn from `PanelRow`, its label, its value and its marks for a value that waits for the
   next start and one the environment overrides.
 - The overlay, the panel and the keys are the host's thread's.
+
+### Drawing with ImGui
+
+A host that draws with Dear ImGui references the second project and makes the two drawers once.
+Each draws nothing while its model is closed, sets no style and no font, and is called between the
+host's `NewFrame` and `Render` with the window's size in ImGui's units.
+
+```csharp
+var drawnConsole = new ImGuiConsole(console);
+var drawnPanel = new ImGuiPanel(panel);
+
+// Each frame, inside the host's ImGui frame.
+drawnConsole.Draw(host.WindowSize);
+drawnPanel.Draw(host.WindowSize);
+foreach (var key in host.KeysPressed) keys.KeyDown(key, typing: drawnConsole.Typing);
+```
+
+![The console and the settings panel drawn with ImGui](.github/assets/readings/2026-11-21-item-4-console-and-panel.webp)
+
+- The console is a window across the top, `ImGuiConsole.Height` of the host's window, 0.4 by
+  default. Its field takes the keyboard as the console opens, Enter submits the line, Tab completes
+  it, and up and down go through the history. `ImGuiConsole.Typing` says whether the field has the
+  keyboard, which the host gives `DiagnosticKeys.KeyDown`.
+- The panel is a window in the middle, sized to its rows, which ImGui measures in the first frame
+  and draws from the second. With `ImGuiPanel.ReadsKeys`, the default, it reads the arrows, Enter
+  and Escape and a pad's directions, lower face button and right face button from ImGui's keys, so
+  a host that feeds ImGui its input feeds the panel, a pad's where the host's backend sets
+  `ImGuiBackendFlags.HasGamepad`. A host that steers the model itself turns it off.
+- A host without ImGui draws the same models its own way, `ConsoleModel.Lines`, the line it
+  enters and `ConsoleModel.Hint` for the console, and `PanelModel.Title` and `PanelModel.Rows` for
+  the panel.
 
 ### What a generator emits
 
