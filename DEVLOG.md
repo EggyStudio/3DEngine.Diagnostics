@@ -8,6 +8,10 @@ captures the repository keeps under `.github/assets`. A line under Done names th
 
 Commits that day
 
+- `766abdf` The module gains its solution, an empty core library that takes no package, an empty
+  library beside it that alone references ImGui, tests that both load, that the core stands on .NET
+  alone and keeps the shared checks and that comment lines hold to 100 columns, the version at 0.1
+  and a build workflow on Linux, Windows and macOS.
 - `999769e` The module gains its documents, AGENTS.md, the README with its link row, STYLE.md,
   COMMITS.md and the code of conduct as the other modules keep them, an empty cheatsheet and devlog,
   the license, git's ignore and attribute files, the Tools module as a submodule, the review and the

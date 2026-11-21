@@ -7,10 +7,26 @@ reach at the keyboard, console commands and settings in one registry, and the co
 console, the debug overlay and the settings panel as plain data a host draws. It references no
 engine, and an engine binds it by filling the hooks it declares and drawing what it gives.
 
-The repository holds two libraries with no type in either yet, so none of the above is
-implemented. The core, `3DEngine.Diagnostics`, stands on .NET alone with no package and no graphics
-reference, which a test of its own holds, and `3DEngine.Diagnostics.ImGui` beside it is the one
-project that references Dear ImGui, for a host that has an ImGui context.
+The core, `3DEngine.Diagnostics`, stands on .NET alone with no package and no graphics reference,
+which a test of its own holds. `3DEngine.Diagnostics.ImGui` beside it is the one project that
+references Dear ImGui, for a host that has an ImGui context, and holds no type yet. The overlay's
+and the panel's content, the keys and the drawing with ImGui are not implemented yet.
+
+## What it holds
+
+| Type | Gives |
+|---|---|
+| `Registry` | The commands and the settings of a process by name in one namespace, a name added twice refused, and `Run`, which runs a line as a command or as the reading or setting of a setting, with `help`, `list` and `reset` of its own |
+| `Command` and `Argument` | A console command, its dotted name, summary, usage, the words it takes and what runs it |
+| `CommandLine` | A line as a console takes it, its name, the rest as typed and its words, split at blanks with a quoted word kept whole |
+| `Answer` | What a line answers, its text and, where it failed, a code in capitals a script reads |
+| `CommandAttribute` | The mark a host's generator reads on a static method to add it as a command |
+| `Setting` and `Setting<T>` | A setting of a bool, an int, a float, a double, an enum or a string, its default, its range or choices, the host's getter and setter, whether it takes effect at the next start, and the environment variable that overrides it |
+| `SettingKind` | Whether a setting is a toggle, a whole number, a number, a choice or text |
+| `ConsoleModel` | A console's content with no drawing, a line in and lines out, the history, completion by prefix and a hint |
+| `ConsoleLine` and `ConsoleLevel` | A line a console shows and whether it was entered, plain, a warning or an error |
+| `Completion` | What a typed start completes to, the line and the candidates |
+| `SettingsFile` | The settings kept across runs in one text file of name and value lines, only the values that differ from their defaults, with unknown names kept |
 
 ## Taking it into an engine
 
@@ -37,6 +53,81 @@ A clone of the engine fetches the module with `git clone --recurse-submodules`, 
 `submodules: true` on `actions/checkout`. A change the engine uses is committed and pushed here
 before the engine's commit that moves its pointer, so the engine's history never names a commit
 this repository does not have.
+
+## Binding it in your engine
+
+The module opens no window, reads no key and draws nothing in its core, so a binding is the host's
+code that adds its commands and settings, hands lines over and draws the models its own way. `host`
+stands for the engine's own calls, whatever it names them.
+
+```csharp
+// Once, as the host starts, on any thread.
+var registry = Registry.Process;
+registry.Add(new Command("screen.shot", "Writes a picture of the frame.", "screen.shot [<path>]",
+    line => new Answer(host.Screenshot(line.Words.Count > 0 ? line.Words[0] : null))));
+registry.Add(new Setting<bool>("render.vsync", "Whether a frame waits for the display.", true,
+    host.GetVsync, host.SetVsync) { EnvironmentVariable = "GAME_VSYNC" });
+
+// Once the settings are added, on the host's thread.
+var file = new SettingsFile(host.SettingsPath);
+foreach (var refusal in file.Read(registry)) host.Log(refusal);
+var console = new ConsoleModel(registry);
+
+// From any thread, a line of the host's log or a command's late answer.
+console.Write(ConsoleLevel.Warning, "The shader cache is cold.");
+
+// On the host's thread, a line the player entered or a socket handed over.
+var answer = console.Submit("render.vsync off");
+if (!answer.Done) host.Log($"{answer.Code} {answer.Text}");
+
+// As the player leaves the settings and as the program ends.
+file.Write(registry);
+```
+
+It stands on these conventions.
+
+- A name is lowercase words of letters, digits and underscores joined by dots, as `render.vsync`,
+  and commands and settings share the one namespace, so a line's first word is one or the other.
+  `render.vsync` alone answers with the setting and `render.vsync off` sets it.
+- `Registry.Add`, `Registry.Remove`, the finding and listing calls, `ConsoleModel.Write` and
+  `ConsoleModel.Lines` are safe from any thread. `Registry.Run`, `ConsoleModel.Submit`, a setting's
+  set and the settings file are the host's thread's, since a command and a setter run where they are
+  called. A host that takes lines from a socket hands each to its own thread before it runs.
+- A command answers at once. An answer that comes frames later is the host's to keep, and the host
+  writes it with `ConsoleModel.Write` when it has it.
+- A failure's code is capitals with underscores. The module's own are `NO_SUCH_COMMAND`,
+  `BAD_ARGUMENT`, `OUT_OF_RANGE` and `FAILED`, and a host's command gives its own through
+  `Answer.Fail`.
+- A value is text in the invariant culture, a toggle `on` or `off`, a choice an enum's name read
+  whatever its case, and a text in double quotes where it holds a blank.
+- A setting with `AtNextStart` keeps the set value for the file and its running value until the
+  program starts again, and `SettingsFile.Read` gives it the file's value as the running one.
+- A setting's environment variable, where it is set to a value the setting takes, gives the running
+  value for the whole run. A set is then kept for the file alone, and `Setting.Overridden`, the
+  setting's sentence and `list` say so.
+- `SettingsFile.For` names a game's file, `settings.txt` in a folder of the game's name under the
+  system's folder of applications' data, and a host with a folder of its own gives any path.
+
+### What a generator emits
+
+The module reads no attribute itself. A host whose commands are static methods marked with
+`CommandAttribute` keeps the generator that finds them, and for each method it emits one call that
+adds a `Command` to `Registry.Process` as the assembly loads, its usage written from the method's
+parameters, its run reading them from the line's words and answering with the text the method
+returns or with `Answer.Fail` and the host's code.
+
+```csharp
+Registry.Process.Add(new Command("entity.move", "Moves an entity.", "entity.move <id> <x> <y> <z>",
+    line => line.Words.Count == 4
+        ? new Answer(Commands.Move(int.Parse(line.Words[0]), line.Words[1], line.Words[2], line.Words[3]))
+        : Answer.Fail(Answer.BadArgument, "entity.move takes an id and three numbers."))
+{
+    Arguments = [new("id", "int"), new("x", "float"), new("y", "float"), new("z", "float")],
+});
+```
+
+A command that takes its line whole, as a fragment of code or a path with blanks, declares one
+argument with `TakesLine` and reads `CommandLine.Rest`.
 
 ## Building and testing
 

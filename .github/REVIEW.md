@@ -77,4 +77,75 @@ None yet.
 
 ## Replies
 
-None yet.
+Item 3's first Reply, the design, read against 3DEngine's `6e5acdbf`, BevyCSharp's `789886e0`,
+Modeling's `b8d6834c` and the voxel game's `0106269f`. Every type is in the namespace `Diagnostics`,
+the ImGui library's too, since a namespace ending in `ImGui` hides the binding's `ImGui` class.
+
+**A name** is lowercase words joined by dots, and one name is a command or a setting, never both,
+so a name added twice is refused whichever it was.
+
+**A command** is `Command(Name, Summary, Usage, Arguments, Func<CommandLine, Answer> Run)`, an
+argument `Argument(Name, Kind, Optional, TakesLine)` as BevyCSharp's `CommandParameter`. A
+`CommandLine` gives `Rest`, the line after the name as typed, and `Words`, split at blanks with
+double quotes and backslash escapes, so Modeling's whole-line run and the engines' typed words are
+both one adapter. `Answer(Text, Code)` is done where `Code` is null, a code in capitals as
+Modeling's, the module's own being `NO_SUCH_COMMAND`, `BAD_ARGUMENT`, `OUT_OF_RANGE` and `FAILED`
+for a run that threw.
+
+**A setting** is `Setting<T>` over bool, int, float, an enum's choices or text, with `Name`,
+`Summary`, `Default`, `Low`, `High` and `Step` or `Choices`, a `Get` and a `Set` the host gives (the
+module holds the value where it gives none), `AtNextStart`, `Saved`, `EnvironmentVariable` and
+`Changed`. `TrySet(text)` answers a refusal with its reason, the range or the choices. A setting
+for the next start keeps the set value as `Pending` and `Get` stays the running one. A variable
+set in the environment gives the value, `Overridden` reads true, and a set is kept for the file
+and answered as overridden. Values are text in the invariant culture.
+
+**The registry** is `Registry`, an instance a test makes, with `Registry.Process` the process's
+one. `Add`, `Remove`, `Find`, `Commands`, `Settings`, `Starting(prefix)` and `Run(line)`. A line
+naming a setting reads it with no word after and sets it with one, `render.vsync off`, and `help`,
+`list` and `reset` are the module's own commands.
+
+**The console** is `ConsoleModel(registry)`, `Submit(line)` echoing the line and its answer into a
+ring of 2,000 `ConsoleLine(Text, Level)`, `Write(level, text)` for a host's log, `Back` and
+`Forward` over the history, `Complete(typed)` giving the names of the prefix and their common
+start, a choice's values after a setting's name, `Hint(typed)`, a filter by level and search.
+
+**The overlay** is `OverlayModel` with four places, `Head`, `Beside`, `Left` and `Right`, as both
+engines lay it out. A host adds `Section(name, place, Func<IEnumerable<string>>)` and calls
+`Frame(seconds)`, which keeps 240 frame times, gives `Stats` (now, average, 1% low) and asks the
+sections again four times a second. The module fills no line itself but the frame's.
+
+**The panel** is `PanelModel(registry)`, a page for each first word of the settings' names and a
+host's own pages, its rows a setting, an action running a command, a page or text, read as label,
+value and marks for pending and overridden. `Press(Up | Down | Left | Right | Accept | Back)` is all
+it takes, left and right stepping by `Step` or to the next choice. Repeating a held key is the
+host's.
+
+**The keys** are `KeyAction` (HideInterface, Screenshot, Overlay, Panel, Console), each a text
+setting `keys.<action>` holding a key's name, F1 to F5 by default, so the console, the panel and
+the file rebind them. A host gives `KeyDown(name)`, `KeyUp(name)` and whether a field is typing,
+and the module answers the action, taken on release where no other key went down as both engines
+take F3, with Shift for the overlay's detail. It toggles its own models and raises
+`ScreenshotAsked` for the host.
+
+**The file** is `SettingsFile(path)`, with `SettingsFile.For(game)` under the system's application
+data folder, UTF-8 lines of a name, a space and a value, saved settings that differ from their
+default alone, sorted by name, a line of an unknown name kept as it is, a refused value reported
+and its setting at its default, written through a temporary file and only where the text changed.
+A changed default needs no version, since the file never held it.
+
+**3DEngine deletes** `ConsoleCommands`, `ConsoleCommand`, `CommandParameter`, the overlay's lists,
+sections, strip and `Stats`, the chord rule of `DebugKeys`, and `EditMeshCommands`' `model.*`, and
+gains the typed console. **BevyCSharp deletes** the same registry, `ConsoleLog`'s ring,
+`ConsoleView`, `ImGuiConsole`, the model half of `Debug.Overlay`, the key statics and
+`ConsoleModelCommands`. The games drop their panels' rows, `Option`, `OptionsFile` and `setting`.
+**Theirs stay** the `[Command]` attribute and generators, which emit `Registry.Process.Add`, lending
+the world, `Fail`, `Hold` and `Later`, the sockets, the numbers' sources, applying a setting,
+reading keys, drawing the overlay, screenshots, recording and their own commands' names.
+
+Questions a host answers, held until reviewed.
+
+1. Does `[Command]` stay each engine's, as proposed, or move here with the generators kept there?
+2. A late answer (`Hold`, `Later`) stays the host's, which writes it to the console. Agreed?
+3. F3 with F4 is a game's chord in two games. The release rule leaves chords to the host, so F4
+   alone opens the panel and the chord stands. Is that the wanted reading?

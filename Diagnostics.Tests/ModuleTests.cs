@@ -7,18 +7,17 @@ namespace Diagnostics.Tests;
 /// <summary>
 /// The checks every module keeps, from the Tools submodule, that the core takes no engine, window
 /// or graphics API, names no engine in a public member or its documentation and has every public
-/// type named in the README, that the cheatsheet is what the built library writes, that no tracked
-/// text names an engine and that the README opens with its link row.
+/// type named in the README, that the README's binding block is the host's code, that the
+/// cheatsheet is what the built library writes, that no tracked text names an engine and that the
+/// README opens with its link row.
 /// </summary>
-/// <remarks>
-/// The check of the README's binding block against a host's source joins these with the first
-/// type a host binds, since the README has no such block before it.
-/// </remarks>
 public sealed class ModuleTests
 {
-    // The core's assembly and the checkout's root, which a module sets.
+    // The core's assembly, the checkout's root and the source of the host that runs the README's
+    // binding block, the three a module sets.
     private const string Library = "3DEngine.Diagnostics";
     private static readonly string Root = Repository.Root;
+    private const string Host = "Diagnostics.Tests/BindingTests.cs";
 
     private static readonly string Deps = Path.Combine(AppContext.BaseDirectory, Assembly.GetExecutingAssembly().GetName().Name + ".deps.json");
     private static readonly string Readme = File.ReadAllText(Path.Combine(Root, "README.md"));
@@ -50,6 +49,13 @@ public sealed class ModuleTests
     public void The_Readme_Names_Every_Public_Type()
     {
         var fault = ModuleChecks.UnnamedFault(Assembly.Load(Library), Readme);
+        Assert.True(fault is null, fault);
+    }
+
+    [Fact]
+    public void The_Readmes_Binding_Block_Stands_Word_For_Word_In_The_Host()
+    {
+        var fault = ModuleChecks.BindingBlock(Readme, File.ReadAllText(Path.Combine(Root, Host)));
         Assert.True(fault is null, fault);
     }
 
