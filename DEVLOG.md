@@ -9,14 +9,18 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 ## 2026-11-21
 
 ![](.github/assets/readings/2026-11-21-item-4-console-and-panel.webp)
-The console and the settings panel as the ImGui library draws them, in ImGui's light style at 960 by
-540 with no device and set on a white ground, the console across the top with entered lines dimmed,
-a refused set in red, a host's warning in orange and the hint of the line being entered under the
-field, and the panel under it on the page of the settings named render, the selected row banded with
-its value between the marks of left and right and a setting that waits for the next start saying so.
+The console and the settings panel as the ImGui library draws them, in ImGui's light style at 960
+pixels wide with no device, cut to the two windows and set on a white ground, the console across the
+top with entered lines dimmed, a refused set in red, a host's warning in orange and the hint of the
+line being entered under the field, and the panel under it on the page of the settings named render,
+the selected row banded with its value between the marks of left and right and a setting that waits
+for the next start saying so.
 
 Commits that day
 
+- `be8f4b1` The ImGui library draws the console with its field, history, completion and hint and the
+  settings panel steered by ImGui's arrows, Enter, Escape and a pad, and the tests draw both into a
+  picture on the CPU with no device.
 - `e84bde3` The core gains the overlay's model of named sections, frame times and their statistics,
   the settings panel's model of pages steered by six inputs, a setting's step, and the five keys as
   rebindable settings taken on release and never by a chord.

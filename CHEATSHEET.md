@@ -6,7 +6,8 @@ the first sentence of its summary, in the order the README first names it. A hos
 settings in a `SettingsFile`, and shows an `OverlayModel` and a `PanelModel` that `DiagnosticKeys`
 turn over. The README's section Binding it in your engine gives the conventions,
 the calls safe from any thread among them, and the smallest binding. The list is written by
-`Cheatsheet.Write` from the built library, and this text by hand.
+`Cheatsheet.Write` from the built library, and this text by hand. The ImGui library's two types
+follow under a heading of their own.
 
 <!-- written by Cheatsheet.Write from the built library -->
 ```csharp
@@ -238,4 +239,26 @@ SettingsFile For(string game);                           // The file of a game i
 IReadOnlyList<string> Read(Registry registry);           // Reads the file into a registry's settings as a start does, and gives each line it refused with its reason
 bool Write(Registry registry);                           // Writes the file from a registry's settings where its text would change, and says whether it wrote
 string Text(Registry registry);                          // The text Write writes for a registry's settings
+```
+
+## The ImGui library
+
+Every public type of `3DEngine.Diagnostics.ImGui`, the second library, which draws the console and
+the panel for a host that has an ImGui context. Its list is written by a second call of
+`Cheatsheet.Write`, which a test of the module makes, and stands last on the page.
+
+<!-- written by a second call of Cheatsheet.Write from the built ImGui library -->
+```csharp
+class ImGuiConsole                                       // Draws a ConsoleModel with Dear ImGui, in a host's ImGui frame
+ImGuiConsole(ConsoleModel model);
+float Height { get; set; }                               // The share of the host's window's height the console takes, 0.4 by default
+bool Typing { get; }                                     // Whether the console's field had the keyboard when it was last drawn, which a host gives its key reading as typing
+string Typed { get; set; }                               // The line being entered
+void Draw(Vector2 window);                               // Draws the console where its model is open, and nothing where it is not
+
+class ImGuiPanel                                         // Draws a PanelModel with Dear ImGui, in a host's ImGui frame
+ImGuiPanel(PanelModel model);
+bool ReadsKeys { get; set; }                             // Whether the panel reads its six inputs from ImGui's keys while it is open, which it does by default
+float Width { get; set; }                                // The panel's width in ImGui's units, 520 by default
+void Draw(Vector2 window);                               // Draws the panel where its model is open, and nothing where it is not
 ```

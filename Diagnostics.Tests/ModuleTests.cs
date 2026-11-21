@@ -75,6 +75,32 @@ public sealed class ModuleTests
     }
 
     [Fact]
+    public void The_Cheatsheets_Second_List_Is_What_The_Built_ImGui_Library_Writes()
+    {
+        // The writer writes one library's list under its own mark, so the second library's is
+        // written by a second call into a page of the mark alone, and stands in the cheatsheet
+        // under a mark of its own, where the first call keeps it as text written by hand.
+        const string mark = "<!-- written by Cheatsheet.Write from the built library -->";
+        const string second = "<!-- written by a second call of Cheatsheet.Write from the built ImGui library -->";
+        var written = Cheatsheet.Write(Assembly.Load(Library + ".ImGui"), Readme, mark + "\n```csharp\n```\n");
+        var list = written[(written.IndexOf(mark, StringComparison.Ordinal) + mark.Length)..].Trim('\n') + "\n";
+
+        var path = Path.Combine(Root, "CHEATSHEET.md");
+        var page = File.ReadAllText(path).ReplaceLineEndings("\n");
+        var at = page.IndexOf(second, StringComparison.Ordinal);
+        Assert.True(at >= 0, $"CHEATSHEET.md holds no line {second}.");
+        var head = page[..(at + second.Length)] + "\n";
+        if (page == head + list) return;
+        if (Environment.GetEnvironmentVariable("CHEATSHEET_WRITE") == "1")
+        {
+            File.WriteAllText(path, head + list);
+            return;
+        }
+
+        Assert.Equal(list, page[head.Length..]);
+    }
+
+    [Fact]
     public void No_Tracked_Text_Names_An_Engine()
     {
         var fault = ModuleChecks.EngineNameInTextFault(Root);
