@@ -59,7 +59,7 @@ public sealed class SourceTests
     private static IEnumerable<string> Files(string root)
     {
         string[] patterns = ["*.cs", "*.csproj", "*.props", "*.slnx", "*.yml", "*.sh", "*.py"];
-        foreach (var folder in new[] { "Diagnostics", "Diagnostics.ImGui", "Diagnostics.Tests", "build", ".github" })
+        foreach (var folder in new[] { "Diagnostics", "Diagnostics.ImGui", "Diagnostics.Example", "Diagnostics.Tests", "build", ".github" })
         foreach (var pattern in patterns)
         foreach (var file in Directory.EnumerateFiles(Path.Combine(root, folder), pattern, SearchOption.AllDirectories))
         {

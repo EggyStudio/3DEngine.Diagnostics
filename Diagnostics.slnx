@@ -5,6 +5,7 @@
     <File Path="README.md" />
   </Folder>
   <Project Path="Diagnostics/Diagnostics.csproj" />
+  <Project Path="Diagnostics.Example/Diagnostics.Example.csproj" />
   <Project Path="Diagnostics.ImGui/Diagnostics.ImGui.csproj" />
   <Project Path="Diagnostics.Tests/Diagnostics.Tests.csproj" />
 </Solution>

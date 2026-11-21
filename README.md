@@ -88,6 +88,15 @@ if (!answer.Done) host.Log($"{answer.Code} {answer.Text}");
 file.Write(registry);
 ```
 
+`Diagnostics.Example` is a console program with no window that binds the core this way, three
+commands, four settings of four kinds, a settings file read at the start and written at the end,
+and lines from its arguments or standard input run through a `ConsoleModel`. A test of the module
+runs it with scripts of lines and holds its output.
+
+```bash
+dotnet run --project Diagnostics.Example -- "greet.hello" "greet.style shout" "greet.hello Ada"
+```
+
 It stands on these conventions.
 
 - A name is lowercase words of letters, digits and underscores joined by dots, as `render.vsync`,

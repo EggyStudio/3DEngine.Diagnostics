@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- A console program with no window that binds the core as a host does, which a reader runs
+         to see the commands, the settings, the console's model and the settings file at work. -->
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <AssemblyName>Diagnostics.Example</AssemblyName>
+        <RootNamespace>Diagnostics.Example</RootNamespace>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Diagnostics\Diagnostics.csproj" />
+    </ItemGroup>
+
+</Project>

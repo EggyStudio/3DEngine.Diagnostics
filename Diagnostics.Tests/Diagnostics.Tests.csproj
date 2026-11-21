@@ -11,6 +11,7 @@
     <ItemGroup>
         <ProjectReference Include="..\Diagnostics\Diagnostics.csproj" />
         <ProjectReference Include="..\Diagnostics.ImGui\Diagnostics.ImGui.csproj" />
+        <ProjectReference Include="..\Diagnostics.Example\Diagnostics.Example.csproj" />
     </ItemGroup>
 
     <!-- The checks every module keeps, from the Tools submodule, taken by the tests alone so the

@@ -18,6 +18,8 @@ for the next start saying so.
 
 Commits that day
 
+- `da71a5d` The pin of the Tools module moves to its newest commit, which no fact of the module
+  changes, and the devlog is written again with its script.
 - `539f411` The cheatsheet lists the ImGui library's two types under a heading of their own, written
   by a second call of the writer that a test holds, and the picture of the console and the panel is
   cut to its two windows.
