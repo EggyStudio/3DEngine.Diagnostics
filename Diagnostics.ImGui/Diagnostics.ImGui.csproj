@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- The library that draws the core's console and settings panel with Dear ImGui, for a host
+         that has an ImGui context. It alone references ImGui, and a host without one leaves it
+         out. Its types stand in the core's namespace, since a namespace ending in ImGui would hide
+         the binding's own ImGui class from the code inside it. -->
+    <PropertyGroup>
+        <AssemblyName>3DEngine.Diagnostics.ImGui</AssemblyName>
+        <PackageId>3DEngine.Diagnostics.ImGui</PackageId>
+        <RootNamespace>Diagnostics</RootNamespace>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <WarningsAsErrors>$(WarningsAsErrors);CS1591;CS1574</WarningsAsErrors>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Diagnostics\Diagnostics.csproj" />
+    </ItemGroup>
+
+    <!-- The binding of Dear ImGui, whose calls are in the namespace ImGuiNET. A host draws into
+         the context it made with the same binding, so the version is the one a host builds
+         with. -->
+    <ItemGroup>
+        <PackageReference Include="Twizzle.ImGui-Bundle.NET" Version="1.91.5.2" />
+    </ItemGroup>
+
+</Project>

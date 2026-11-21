@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- The libraries' tests, which need no window and no GPU. -->
+    <PropertyGroup>
+        <IsPackable>false</IsPackable>
+        <AssemblyName>3DEngine.Diagnostics.Tests</AssemblyName>
+        <RootNamespace>Diagnostics.Tests</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Diagnostics\Diagnostics.csproj" />
+        <ProjectReference Include="..\Diagnostics.ImGui\Diagnostics.ImGui.csproj" />
+    </ItemGroup>
+
+    <!-- The checks every module keeps, from the Tools submodule, taken by the tests alone so the
+         libraries take nothing of it; a clone without the submodule stops here with the command
+         that fetches it. -->
+    <ItemGroup>
+        <ProjectReference Include="..\modules\Tools\Tools\Tools.csproj" />
+    </ItemGroup>
+    <Target Name="NeedsTools" BeforeTargets="Restore;CollectPackageReferences;ResolveProjectReferences" Condition="!Exists('$(MSBuildThisFileDirectory)..\modules\Tools\Tools\Tools.csproj')">
+        <Error Text="The Tools submodule is not fetched. Run git submodule update --init modules/Tools." />
+    </Target>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
+        <PackageReference Include="xunit" Version="2.9.3" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0-pre.4">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+    </ItemGroup>
+
+</Project>

@@ -33,7 +33,11 @@ runs the tests on Linux, Windows and macOS on every push (NORM.md, N 6.1 and N 6
 
 | Path | Holds |
 |---|---|
-| `.github` | The documents above but the README |
+| `.github` | The documents above but the README, and the build workflow |
+| `Diagnostics` | The core library, `Diagnostics.csproj`, which takes no package and holds no graphics reference |
+| `Diagnostics.ImGui` | The library that draws the core's console and settings panel with ImGui, `Diagnostics.ImGui.csproj`, the one project that references ImGui |
+| `Diagnostics.Tests` | The xunit tests of both libraries |
+| `build` | The version, `version.txt`'s major and minor set by hand and `version.sh`, which prints it with the patch counted from the history |
 | `modules` | The Tools module as a git submodule, `modules/Tools`, whose checks of a module the tests take and the library does not |
 
 ## Conventions

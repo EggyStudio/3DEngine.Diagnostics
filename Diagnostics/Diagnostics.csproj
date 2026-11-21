@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- The library an engine references from a project of its own, which knows no engine
+         (N 2.1) and takes no package, so it holds no reference to ImGui or a graphics API and a
+         host draws its models any way it has. -->
+    <PropertyGroup>
+        <AssemblyName>3DEngine.Diagnostics</AssemblyName>
+        <PackageId>3DEngine.Diagnostics</PackageId>
+        <RootNamespace>Diagnostics</RootNamespace>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <!-- Every public member has a summary (STYLE.md), so a missing one stops the build, as a cref
+         that names nothing does. -->
+    <PropertyGroup>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <WarningsAsErrors>$(WarningsAsErrors);CS1591;CS1574</WarningsAsErrors>
+    </PropertyGroup>
+
+</Project>
