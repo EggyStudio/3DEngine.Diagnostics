@@ -5,11 +5,20 @@ namespace Diagnostics;
 
 /// <summary>Draws a <see cref="ConsoleModel"/> with Dear ImGui, in a host's ImGui frame.</summary>
 /// <remarks>
-/// The console is a window across the top of the host's window, its filters and search, the
-/// lines, the line being entered and the hint under it. Up and down go through the history, Tab
-/// completes and Enter submits, while the field has the keyboard. It sets no style and no font,
-/// which are the host's. <see cref="Draw"/> is called on the host's thread between the host's
-/// <c>NewFrame</c> and <c>Render</c>.
+/// <para>
+/// The console is a window across the top of the host's window, a plain list of every line, the
+/// field the line is entered in and the hint under it. While the model's popup shows, the
+/// candidates stand in a box above the field, as wide as the field, six rows at most with the
+/// selected one banded, and the ghost text follows what is typed in a dimmed color. Up and down
+/// move the selection or walk the history, Tab fills the selected candidate and Enter runs the
+/// line, all by the model, while the field has the keyboard.
+/// </para>
+/// <para>
+/// The box and the ghost are drawn on ImGui's foreground list, so they stand over the console
+/// whichever window has the focus. The console sets no style and no font, which are the host's.
+/// <see cref="Draw"/> is called on the host's thread between the host's <c>NewFrame</c> and
+/// <c>Render</c>.
+/// </para>
 /// </remarks>
 /// <param name="model">The console drawn.</param>
 public sealed class ImGuiConsole(ConsoleModel model)
@@ -23,7 +32,6 @@ public sealed class ImGuiConsole(ConsoleModel model)
         | ImGuiInputTextFlags.CallbackHistory;
 
     private readonly ConsoleModel _model = model ?? throw new ArgumentNullException(nameof(model));
-    private string _typed = "";
     private long _seen;
     private bool _wasOpen;
 
@@ -37,13 +45,6 @@ public sealed class ImGuiConsole(ConsoleModel model)
     /// key reading as typing.
     /// </summary>
     public bool Typing { get; private set; }
-
-    /// <summary>The line being entered.</summary>
-    public string Typed
-    {
-        get => _typed;
-        set => _typed = value ?? "";
-    }
 
     /// <summary>Draws the console where its model is open, and nothing where it is not.</summary>
     /// <param name="window">The host's window's size in ImGui's units.</param>
@@ -59,28 +60,12 @@ public sealed class ImGuiConsole(ConsoleModel model)
         ImGui.SetNextWindowSize(new Vector2(window.X, MathF.Round(window.Y * Math.Clamp(Height, 0.1f, 1f))), ImGuiCond.Always);
         if (ImGui.Begin("Console##diagnostics", Window))
         {
-            Filters();
             Lines();
             Entry();
         }
 
         ImGui.End();
         _wasOpen = true;
-    }
-
-    private void Filters()
-    {
-        var search = _model.Search;
-        ImGui.SetNextItemWidth(MathF.Max(120f, ImGui.GetContentRegionAvail().X * 0.4f));
-        if (ImGui.InputTextWithHint("##search", "Search the lines", ref search, 128)) _model.Search = search;
-
-        var (info, warnings, errors) = (_model.ShowInfo, _model.ShowWarnings, _model.ShowErrors);
-        ImGui.SameLine();
-        if (ImGui.Checkbox("info", ref info)) _model.ShowInfo = info;
-        ImGui.SameLine();
-        if (ImGui.Checkbox("warnings", ref warnings)) _model.ShowWarnings = warnings;
-        ImGui.SameLine();
-        if (ImGui.Checkbox("errors", ref errors)) _model.ShowErrors = errors;
     }
 
     private void Lines()
@@ -116,29 +101,74 @@ public sealed class ImGuiConsole(ConsoleModel model)
     {
         ImGui.SetNextItemWidth(-1f);
         if (!_wasOpen) ImGui.SetKeyboardFocusHere();
-        if (ImGui.InputTextWithHint("##typed", "Enter a command or a setting", ref _typed, 512, Field, Edit))
+        var typed = _model.Typed;
+        if (ImGui.InputTextWithHint("##typed", "Enter a command or a setting", ref typed, 512, Field, Edit))
         {
-            _model.Submit(_typed);
-            _typed = "";
+            _model.Enter();
             // Enter takes the keyboard from the field, which the next line needs again.
             ImGui.SetKeyboardFocusHere(-1);
         }
+        else if (typed != _model.Typed)
+            _model.Edit(typed);
 
         Typing = ImGui.IsItemActive();
-        ImGui.TextDisabled(_model.Hint(_typed) is { Length: > 0 } hint ? hint : " ");
+        var (min, max) = (ImGui.GetItemRectMin(), ImGui.GetItemRectMax());
+        ImGui.TextDisabled(_model.Hint is { Length: > 0 } hint ? hint : " ");
+
+        if (!_model.PopupShown) return;
+        var list = ImGui.GetForegroundDrawList();
+        Ghost(list, min, max);
+        Popup(list, min, max);
     }
 
+    // The rest of the selected candidate, in the dimmed color, where the typed text ends, as long
+    // as it fits in the field.
+    private void Ghost(ImDrawListPtr list, Vector2 min, Vector2 max)
+    {
+        if (_model.Ghost is not { Length: > 0 } ghost) return;
+        var style = ImGui.GetStyle();
+        var at = new Vector2(min.X + style.FramePadding.X + ImGui.CalcTextSize(_model.Typed).X, min.Y + style.FramePadding.Y);
+        if (at.X + ImGui.CalcTextSize(ghost).X <= max.X - style.FramePadding.X)
+            list.AddText(at, ImGui.GetColorU32(ImGuiCol.TextDisabled), ghost);
+    }
+
+    // The candidates in a box above the field, as wide as the field, the selected row banded in
+    // the style's header color.
+    private void Popup(ImDrawListPtr list, Vector2 min, Vector2 max)
+    {
+        var style = ImGui.GetStyle();
+        var candidates = _model.Candidates;
+        var rows = Math.Min(ConsoleModel.PopupRows, candidates.Count - _model.FirstVisible);
+        var rowHeight = ImGui.GetTextLineHeight() + style.ItemSpacing.Y;
+        var height = rows * rowHeight + style.WindowPadding.Y;
+        var box = (From: new Vector2(min.X, min.Y - height - 2f), To: new Vector2(max.X, min.Y - 2f));
+
+        list.AddRectFilled(box.From, box.To, ImGui.GetColorU32(ImGuiCol.PopupBg), 3f);
+        list.AddRect(box.From, box.To, ImGui.GetColorU32(ImGuiCol.Border), 3f);
+        for (var row = 0; row < rows; row++)
+        {
+            var index = _model.FirstVisible + row;
+            var top = box.From.Y + style.WindowPadding.Y / 2 + row * rowHeight;
+            if (index == _model.SelectedIndex)
+                list.AddRectFilled(new Vector2(box.From.X + 2f, top), new Vector2(box.To.X - 2f, top + rowHeight), ImGui.GetColorU32(ImGuiCol.Header), 2f);
+            list.AddText(new Vector2(box.From.X + style.WindowPadding.X, top + style.ItemSpacing.Y / 2), ImGui.GetColorU32(ImGuiCol.Text), candidates[index]);
+        }
+    }
+
+    // The field's own text is the model's line, which Tab and the arrows change through the model
+    // and write back.
     private unsafe int Edit(ImGuiInputTextCallbackData* data)
     {
         var field = new ImGuiInputTextCallbackDataPtr(data);
         var current = System.Text.Encoding.UTF8.GetString(data->Buf, data->BufTextLen);
-        var next = field.EventFlag == ImGuiInputTextFlags.CallbackCompletion
-            ? _model.Complete(current).Text
-            : field.EventKey == ImGuiKey.UpArrow ? _model.Back(current) : _model.Forward(current);
-        if (next != current)
+        if (current != _model.Typed) _model.Edit(current);
+        if (field.EventFlag == ImGuiInputTextFlags.CallbackCompletion) _model.Accept();
+        else _model.Navigate(field.EventKey == ImGuiKey.UpArrow ? -1 : 1);
+
+        if (_model.Typed != current)
         {
             field.DeleteChars(0, field.BufTextLen);
-            field.InsertChars(0, next);
+            field.InsertChars(0, _model.Typed);
         }
 
         return 0;

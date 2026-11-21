@@ -8,16 +8,23 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 
 ## 2026-11-21
 
-![](.github/assets/readings/2026-11-21-item-4-console-and-panel.webp)
-The console and the settings panel as the ImGui library draws them, in ImGui's light style at 960
-pixels wide with no device, cut to the two windows and set on a white ground, the console across the
-top with entered lines dimmed, a refused set in red, a host's warning in orange and the hint of the
-line being entered under the field, and the panel under it on the page of the settings named render,
-the selected row banded with its value between the marks of left and right and a setting that waits
-for the next start saying so.
+![](.github/assets/readings/2026-11-21-item-4-console-popup.webp)
+The console as the ImGui library draws it in ImGui's light style with no device, a plain list of
+every line with entered lines dimmed, a refused set in red and a host's warning in orange, the popup
+of six candidates above the field as wide as the field with the second selected, the ghost text
+nder.quality after the typed re, and the window cut out with a white margin around it.
+
+![](.github/assets/readings/2026-11-21-item-4-panel-page.webp)
+The settings panel on the page of the settings named render, scale at 1.25 selected with its value
+between the marks of left and right and meshlets saying it takes effect at the next start, the
+window cut out with a white margin around it.
 
 Commits that day
 
+- `5fc659e` The module gains an example, a console program with no window that registers three
+  commands and four settings, reads and writes a settings file, runs lines from its arguments or
+  standard input through the console's model and prints the answers, with tests that hold its output
+  and a pointer to it in the README.
 - `da71a5d` The pin of the Tools module moves to its newest commit, which no fact of the module
   changes, and the devlog is written again with its script.
 - `539f411` The cheatsheet lists the ImGui library's two types under a heading of their own, written

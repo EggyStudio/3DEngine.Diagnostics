@@ -106,9 +106,11 @@ naming a setting reads it with no word after and sets it with one, `render.vsync
 `list` and `reset` are the module's own commands.
 
 **The console** is `ConsoleModel(registry)`, `Submit(line)` echoing the line and its answer into a
-ring of 2,000 `ConsoleLine(Text, Level)`, `Write(level, text)` for a host's log, `Back` and
-`Forward` over the history, `Complete(typed)` giving the names of the prefix and their common
-start, a choice's values after a setting's name, `Hint(typed)`, a filter by level and search.
+plain list of 2,000 `ConsoleLine(Text, Level)`, `Write(level, text)` for a host's log, the line
+being entered as `Typed` with `Edit`, its `Candidates` (the names that begin with the word, then
+those at a later dotted part, a setting's choices after its name), their `SelectedIndex`, `Ghost`
+and `PopupShown` once the player edited, `Navigate` for up and down, `Accept` for Tab, `Enter`,
+the history and `Hint`. The level colors a line and filters none.
 
 **The overlay** is `OverlayModel` with four places, `Head`, `Beside`, `Left` and `Right`, as both
 engines lay it out. A host adds `Section(name, place, Func<IEnumerable<string>>)` and calls

@@ -79,22 +79,64 @@ public sealed class ImGuiDrawingTests
         frames.Frame(Draw);
         Assert.True(drawn.Typing);
 
+        // The player's edit shows the popup and the ghost, and Tab fills the selected candidate.
         frames.Type("render.v", Draw);
-        Assert.Equal("render.v", drawn.Typed);
+        Assert.Equal(("render.v", true, "sync"), (console.Typed, console.PopupShown, console.Ghost));
         frames.Tap(ImGuiKey.Tab, Draw);
-        Assert.Equal("render.vsync ", drawn.Typed);
+        Assert.Equal(("render.vsync ", false), (console.Typed, console.PopupShown));
         frames.Type("off", Draw);
         frames.Tap(ImGuiKey.Enter, Draw);
         Assert.Equal(["render.vsync off"], console.History);
         Assert.Equal("off", registry.FindSetting("render.vsync")!.Text);
-        Assert.Equal("", drawn.Typed);
+        Assert.Equal("", console.Typed);
 
-        // The field has the keyboard again, and up brings the line back.
+        // The field has the keyboard again, and with no popup up brings the line back.
         frames.Frame(Draw);
         Assert.True(drawn.Typing);
         frames.Tap(ImGuiKey.UpArrow, Draw);
-        Assert.Equal("render.vsync off", drawn.Typed);
-        Keep(frames, "console.png");
+        Assert.Equal("render.vsync off", console.Typed);
+        Assert.False(console.PopupShown);
+    }
+
+    [Fact]
+    public void While_The_Popup_Shows_The_Arrows_Move_Its_Selection_And_Tab_Fills_It()
+    {
+        var registry = Make();
+        var console = new ConsoleModel(registry) { Open = true };
+        var drawn = new ImGuiConsole(console);
+        using var frames = new ImGuiFrames(960, 540);
+        void Draw() => drawn.Draw(frames.Size);
+
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+        frames.Type("render.s", Draw);
+        Assert.Equal(["render.scale"], console.Candidates);
+        frames.Type("c", Draw);
+        frames.Frame(Draw);
+        Assert.True(console.PopupShown);
+
+        // The popup is a box above the field and the ghost follows the text, so the frame with
+        // the popup hidden, the same line set by the program, differs from it in many pixels.
+        var shown = frames.Picture.ToArray();
+        console.Typed = "render.sc";
+        frames.Frame(Draw);
+        var differing = Enumerable.Range(0, shown.Length / 4).Count(i => !shown.AsSpan(i * 4, 4).SequenceEqual(frames.Picture.AsSpan(i * 4, 4)));
+        Assert.True(differing > 800, $"{differing} pixels differ with the popup hidden");
+        console.Edit("render.s");
+        console.Edit("render.sc");
+        frames.Frame(Draw);
+
+        // Up moves the selection, which wraps on to the one candidate, and recalls no line though
+        // the history holds one.
+        console.Submit("render.vsync");
+        frames.Tap(ImGuiKey.UpArrow, Draw);
+        Assert.Equal(("render.sc", 0), (console.Typed, console.SelectedIndex));
+        frames.Tap(ImGuiKey.DownArrow, Draw);
+        Assert.Equal("render.sc", console.Typed);
+
+        // Tab fills the candidate and hides the popup.
+        frames.Tap(ImGuiKey.Tab, Draw);
+        Assert.Equal(("render.scale ", false), (console.Typed, console.PopupShown));
     }
 
     [Fact]
@@ -135,31 +177,31 @@ public sealed class ImGuiDrawingTests
     }
 
     [Fact]
-    public void The_Console_And_The_Panel_Are_Drawn_Together_For_A_Picture()
+    public void The_Console_Is_Drawn_With_Its_Popup_And_Ghost_For_A_Picture()
     {
         var registry = Make();
+        registry.Add(new Setting<string>("gfx.renderer", "Which renderer draws.", "main"));
         var console = new ConsoleModel(registry) { Open = true };
-        var panel = new PanelModel(registry) { Open = true };
-        var (drawnConsole, drawnPanel) = (new ImGuiConsole(console), new ImGuiPanel(panel) { ReadsKeys = false });
+        var drawn = new ImGuiConsole(console) { Height = 0.7f };
         console.Submit("help render.scale");
         console.Submit("render.scale 3");
         console.Write(ConsoleLevel.Warning, "The shader cache is cold.");
         console.Submit("entity.count");
-        drawnConsole.Typed = "render.q";
-        panel.Press(PanelInput.Accept);
-        panel.Press(PanelInput.Right);
-        panel.Press(PanelInput.Down);
+        console.Submit("render.vsync off");
 
         using var frames = new ImGuiFrames(960, 540);
-        void Draw()
-        {
-            drawnConsole.Draw(frames.Size);
-            drawnPanel.Draw(frames.Size);
-        }
+        void Draw() => drawn.Draw(frames.Size);
+        frames.Frame(Draw);
+        frames.Frame(Draw);
 
+        // Six candidates, the first five that begin with the typed word and one whose later part
+        // does, the second selected.
+        frames.Type("re", Draw);
+        console.Navigate(1);
         frames.Frame(Draw);
-        frames.Frame(Draw);
+        Assert.Equal(6, console.Candidates.Count);
+        Assert.Equal("nder.quality", console.Ghost);
         Assert.True(frames.Drawn() > 5000, $"{frames.Drawn()} pixels");
-        Keep(frames, "console-and-panel.png");
+        Keep(frames, "console-popup.png");
     }
 }

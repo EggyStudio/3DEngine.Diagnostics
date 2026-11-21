@@ -13,28 +13,35 @@ public class ConsoleModelTests
         registry.Add(new Command("render.show", "Shows a pass.", "render.show <pass>", _ => Answer.Fail(Answer.BadArgument, "No such pass.")));
         registry.Add(new Setting<bool>("render.vsync", "Whether a frame waits for the display.", true));
         registry.Add(new Setting<Quality>("render.quality", "How fine the frame is drawn.", Quality.Medium));
+        registry.Add(new Setting<bool>("sound.vsync", "Whether sound waits for the display.", false));
+        registry.Add(new Setting<string>("gfx.render", "Which renderer draws.", "main"));
         return (new ConsoleModel(registry), registry);
     }
 
+    private static string[] Eight() => Enumerable.Range(0, 8).Select(i => "a.n" + i).ToArray();
+
+    private static ConsoleModel MakeEight()
+    {
+        var registry = new Registry();
+        foreach (var name in Eight()) registry.Add(new Setting<int>(name, "A number.", 0));
+        return new ConsoleModel(registry);
+    }
+
     [Fact]
-    public void A_Line_In_Gives_Its_Echo_And_Its_Answers_Lines_Out()
+    public void A_Line_In_Gives_Its_Echo_And_Its_Answers_Lines_Out_As_One_Plain_List()
     {
         var (console, _) = Make();
         Assert.True(console.Submit(" render.shot ").Done);
         Assert.False(console.Submit("render.show x").Done);
+        console.Write(ConsoleLevel.Warning, "The shader cache is cold.");
         Assert.Equal(
             [
                 new("> render.shot", ConsoleLevel.Input), new("written", ConsoleLevel.Info), new("two lines", ConsoleLevel.Info),
                 new("> render.show x", ConsoleLevel.Input), new("No such pass.", ConsoleLevel.Error),
+                new("The shader cache is cold.", ConsoleLevel.Warning),
             ],
             console.Lines());
-        Assert.Equal(5, console.Written);
-
-        console.ShowInfo = false;
-        Assert.Equal([new ConsoleLine("No such pass.", ConsoleLevel.Error)], console.Lines());
-        console.ShowInfo = true;
-        console.Search = "WRIT";
-        Assert.Equal([new ConsoleLine("written", ConsoleLevel.Info)], console.Lines());
+        Assert.Equal(6, console.Written);
         console.Clear();
         Assert.Empty(console.Lines());
     }
@@ -65,65 +72,268 @@ public class ConsoleModelTests
     }
 
     [Fact]
-    public void The_History_Goes_Back_And_Comes_Forward_To_The_Line_Being_Entered()
+    public void The_Candidates_Are_The_Names_That_Begin_With_The_Word_And_Then_Those_At_A_Later_Part()
     {
         var (console, _) = Make();
-        Assert.Equal("draft", console.Back("draft"));
-        console.Submit("render.vsync");
-        console.Submit("render.shot");
-        console.Submit("render.shot");
+
+        console.Edit("re");
+        // The names that begin with re, in order, then the one whose later part does.
+        Assert.Equal(
+            ["render.quality", "render.shot", "render.show", "render.vsync", "reset", "gfx.render"],
+            console.Candidates);
+
+        console.Edit("vsync");
+        Assert.Equal(["render.vsync", "sound.vsync"], console.Candidates);
+
+        console.Edit("render.s");
+        Assert.Equal(["render.shot", "render.show"], console.Candidates);
+
+        // A name the word spells out is complete, and a blank line has none.
+        console.Edit("render.vsync");
+        Assert.Empty(console.Candidates);
+        console.Edit("RENDER.VS");
+        Assert.Equal(["render.vsync"], console.Candidates);
+        console.Edit("  ");
+        Assert.Empty(console.Candidates);
+        Assert.Equal(-1, console.SelectedIndex);
+    }
+
+    [Fact]
+    public void A_Settings_Choices_And_A_Command_Argument_Of_The_Kind_Name_Complete_Too()
+    {
+        var (console, registry) = Make();
+        registry.Add(new Command("explain", "Says what a name does.", "explain <name>", _ => new Answer("")) { Arguments = [new("name", "name")] });
+
+        console.Edit("render.quality ");
+        Assert.Equal(["Low", "Medium", "High"], console.Candidates);
+        console.Edit("render.quality m");
+        Assert.Equal(["Medium"], console.Candidates);
+        console.Edit("render.vsync o");
+        Assert.Equal(["off", "on"], console.Candidates);
+        // A choice spelled out is complete, a second value has none and a command with no name
+        // argument has none.
+        console.Edit("render.vsync on");
+        Assert.Empty(console.Candidates);
+        console.Edit("render.vsync on o");
+        Assert.Empty(console.Candidates);
+        console.Edit("render.shot re");
+        Assert.Empty(console.Candidates);
+
+        console.Edit("explain vs");
+        Assert.Equal(["render.vsync", "sound.vsync"], console.Candidates);
+    }
+
+    [Fact]
+    public void The_Popup_Shows_Once_The_Player_Edited_And_Not_For_A_Line_Set_By_The_Program()
+    {
+        var (console, _) = Make();
+
+        console.Typed = "render.s";
+        Assert.Equal(["render.shot", "render.show"], console.Candidates);
+        Assert.False(console.PopupShown);
+        Assert.Equal("", console.Ghost);
+
+        console.Edit("render.sh");
+        Assert.True(console.PopupShown);
+        console.Edit("zzz");
+        Assert.False(console.PopupShown);
+
+        // The same text again is no edit.
+        console.Edit("render.sh");
+        console.Edit("render.sh");
+        Assert.Equal(0, console.SelectedIndex);
+        console.Navigate(1);
+        console.Edit("render.sh");
+        Assert.Equal(1, console.SelectedIndex);
+    }
+
+    [Fact]
+    public void The_Selection_Moves_With_Up_And_Down_Wraps_And_Keeps_Six_Rows_In_View()
+    {
+        var console = MakeEight();
+        console.Edit("a.n");
+        Assert.Equal((8, 0, 0), (console.Candidates.Count, console.SelectedIndex, console.FirstVisible));
+
+        // Up from the first wraps to the last, which scrolls the six rows to the end.
+        console.Navigate(-1);
+        Assert.Equal((7, 2), (console.SelectedIndex, console.FirstVisible));
+        console.Navigate(-1);
+        Assert.Equal((6, 2), (console.SelectedIndex, console.FirstVisible));
+
+        // Down from the last wraps to the first, which scrolls back.
+        console.Navigate(1);
+        console.Navigate(1);
+        Assert.Equal((0, 0), (console.SelectedIndex, console.FirstVisible));
+
+        // Down through the rows moves the window one row at a time past the sixth.
+        for (var i = 0; i < 5; i++) console.Navigate(1);
+        Assert.Equal((5, 0), (console.SelectedIndex, console.FirstVisible));
+        console.Navigate(1);
+        Assert.Equal((6, 1), (console.SelectedIndex, console.FirstVisible));
+        console.Navigate(-1);
+        console.Navigate(-1);
+        Assert.Equal((4, 1), (console.SelectedIndex, console.FirstVisible));
+        Assert.Equal(6, ConsoleModel.PopupRows);
+
+        // A new edit starts again at the first.
+        console.Edit("a.");
+        Assert.Equal((0, 0), (console.SelectedIndex, console.FirstVisible));
+    }
+
+    [Fact]
+    public void The_Ghost_Is_The_Rest_Of_The_Selected_Candidate_Where_It_Begins_With_The_Word()
+    {
+        var (console, _) = Make();
+
+        console.Edit("render.s");
+        Assert.Equal("hot", console.Ghost);
+        console.Navigate(1);
+        Assert.Equal("how", console.Ghost);
+        console.Navigate(1);
+        Assert.Equal("hot", console.Ghost);
+
+        // The case the player typed stays and the rest is the candidate's.
+        console.Edit("RENDER.V");
+        Assert.Equal("sync", console.Ghost);
+
+        // A candidate that matches at a later part begins with no word, so it has no ghost.
+        console.Edit("vsync");
+        Assert.Equal("render.vsync", console.Candidates[0]);
+        Assert.Equal("", console.Ghost);
+
+        // After a setting's name the ghost is the first choice.
+        console.Edit("render.quality ");
+        Assert.Equal("Low", console.Ghost);
+        console.Edit("render.quality h");
+        Assert.Equal("igh", console.Ghost);
+    }
+
+    [Fact]
+    public void Tab_Fills_The_Selected_Candidate_Whether_Or_Not_It_Begins_With_The_Word()
+    {
+        var (console, _) = Make();
+
+        console.Edit("vsync");
+        Assert.True(console.Accept());
+        Assert.Equal("render.vsync ", console.Typed);
+        Assert.False(console.PopupShown);
+
+        console.Edit("sound.v");
+        console.Navigate(1);
+        console.Edit("vsync");
+        console.Navigate(1);
+        Assert.Equal(1, console.SelectedIndex);
+        console.Accept();
+        Assert.Equal("sound.vsync ", console.Typed);
+
+        // The word being typed is the last one, and what comes before it stays.
+        console.Edit("render.quality m");
+        console.Accept();
+        Assert.Equal("render.quality Medium ", console.Typed);
+        console.Edit("render.vsync ");
+        Assert.Equal("off", console.Ghost);
+
+        // Nothing to fill, nothing changes.
+        console.Edit("zzz");
+        Assert.False(console.Accept());
+        Assert.Equal("zzz", console.Typed);
+    }
+
+    [Fact]
+    public void Tab_Fills_A_Line_Recalled_From_The_History_Whose_Popup_Is_Hidden()
+    {
+        var (console, _) = Make();
+        console.Typed = "render.s";
+        Assert.False(console.PopupShown);
+        Assert.True(console.Accept());
+        Assert.Equal("render.shot ", console.Typed);
+    }
+
+    [Fact]
+    public void Up_And_Down_Walk_The_History_Where_No_Popup_Shows_And_Keep_The_Line_Being_Entered()
+    {
+        var (console, _) = Make();
+        console.Navigate(-1);
+        Assert.Equal("", console.Typed);
+
+        console.Typed = "render.vsync";
+        console.Enter();
+        console.Typed = "render.shot";
+        console.Enter();
+        console.Typed = "render.shot";
+        console.Enter();
         Assert.Equal(["render.vsync", "render.shot"], console.History);
+        Assert.Equal("", console.Typed);
 
-        Assert.Equal("render.shot", console.Back("ren"));
-        Assert.Equal("render.vsync", console.Back("render.shot"));
-        Assert.Equal("render.vsync", console.Back("render.vsync"));
-        Assert.Equal("render.shot", console.Forward("render.vsync"));
-        Assert.Equal("ren", console.Forward("render.shot"));
-        Assert.Equal("ren", console.Forward("ren"));
+        // The unfinished line comes back past the last entry, and no popup shows on the way.
+        console.Edit("sound");
+        Assert.True(console.PopupShown);
+        console.Navigate(1);
+        console.Navigate(1);
+        Assert.Equal("sound", console.Typed);
+        console.Typed = "sou";
+        console.Navigate(-1);
+        Assert.Equal(("render.shot", false), (console.Typed, console.PopupShown));
+        console.Navigate(-1);
+        Assert.Equal("render.vsync", console.Typed);
+        console.Navigate(-1);
+        Assert.Equal("render.vsync", console.Typed);
+        console.Navigate(1);
+        Assert.Equal("render.shot", console.Typed);
+        console.Navigate(1);
+        Assert.Equal("sou", console.Typed);
+        console.Navigate(1);
+        Assert.Equal("sou", console.Typed);
     }
 
     [Fact]
-    public void A_Typed_Start_Completes_By_Prefix()
+    public void While_The_Popup_Shows_Up_And_Down_Leave_The_History_Alone()
     {
         var (console, _) = Make();
+        console.Typed = "render.vsync";
+        console.Enter();
 
-        var several = console.Complete("render.s");
-        Assert.Equal("render.sho", several.Text);
-        Assert.Equal(["render.shot", "render.show"], several.Candidates);
+        console.Edit("render.s");
+        console.Navigate(-1);
+        Assert.Equal(("render.s", 1), (console.Typed, console.SelectedIndex));
+        console.Navigate(1);
+        Assert.Equal(("render.s", 0), (console.Typed, console.SelectedIndex));
 
-        var one = console.Complete("render.v");
-        Assert.Equal(("render.vsync ", 1), (one.Text, one.Candidates.Count));
-
-        var none = console.Complete("zzz");
-        Assert.Equal(("zzz", 0), (none.Text, none.Candidates.Count));
-
-        Assert.Equal(["help", "list", "render.quality", "render.shot", "render.show", "render.vsync", "reset"], console.Complete("").Candidates);
+        // Once the popup is gone, up recalls.
+        console.Edit("zzz");
+        console.Navigate(-1);
+        Assert.Equal("render.vsync", console.Typed);
     }
 
     [Fact]
-    public void A_Settings_Value_And_A_Name_After_Help_Complete_Too()
+    public void Enter_Runs_The_Typed_Line_Empties_It_And_Hides_The_Popup()
     {
         var (console, _) = Make();
+        console.Edit("render.vsync off");
+        var answer = console.Enter();
+        Assert.True(answer.Done);
+        Assert.Equal(("", false, -1), (console.Typed, console.PopupShown, console.SelectedIndex));
+        Assert.Equal("> render.vsync off", console.Lines()[0].Text);
 
-        var choice = console.Complete("render.quality m");
-        Assert.Equal(("render.quality Medium ", "Medium"), (choice.Text, Assert.Single(choice.Candidates)));
-        Assert.Equal(["off", "on"], console.Complete("render.vsync o").Candidates);
-        Assert.Equal("render.vsync o", console.Complete("render.vsync o").Text);
-        Assert.Empty(console.Complete("render.vsync on o").Candidates);
-
-        var named = console.Complete("help render.q");
-        Assert.Equal("help render.quality ", named.Text);
-        Assert.Empty(console.Complete("render.shot re").Candidates);
+        // A line handed over from elsewhere leaves the typing alone.
+        console.Edit("render.sh");
+        console.Submit("render.shot");
+        Assert.Equal(("render.sh", true), (console.Typed, console.PopupShown));
     }
 
     [Fact]
     public void The_Hint_Is_A_Commands_Usage_Or_A_Setting_In_A_Sentence()
     {
         var (console, _) = Make();
-        Assert.Equal("render.shot [<path>]", console.Hint("render.shot a.png"));
-        Assert.Equal("render.vsync is on.", console.Hint("render.vsync"));
-        Assert.Equal("render.quality is Medium.", console.Hint("render.q"));
-        Assert.Equal("", console.Hint("render.s"));
-        Assert.Equal("", console.Hint(""));
+        console.Typed = "render.shot a.png";
+        Assert.Equal("render.shot [<path>]", console.Hint);
+        console.Typed = "render.vsync";
+        Assert.Equal("render.vsync is on.", console.Hint);
+        console.Typed = "render.q";
+        Assert.Equal("render.quality is Medium.", console.Hint);
+        console.Typed = "render.s";
+        Assert.Equal("", console.Hint);
+        console.Typed = "";
+        Assert.Equal("", console.Hint);
     }
 }

@@ -23,9 +23,8 @@ context. The overlay is drawn by the host from its model, with whatever text the
 | `CommandAttribute` | The mark a host's generator reads on a static method to add it as a command |
 | `Setting` and `Setting<T>` | A setting of a bool, an int, a float, a double, an enum or a string, its default, its range or choices, the host's getter and setter, whether it takes effect at the next start, and the environment variable that overrides it |
 | `SettingKind` | Whether a setting is a toggle, a whole number, a number, a choice or text |
-| `ConsoleModel` | A console's content with no drawing, a line in and lines out, the history, completion by prefix and a hint |
-| `ConsoleLine` and `ConsoleLevel` | A line a console shows and whether it was entered, plain, a warning or an error |
-| `Completion` | What a typed start completes to, the line and the candidates |
+| `ConsoleModel` | A console's content with no drawing, a plain list of every line written, the line being entered with the candidates its start leaves, their selection and the ghost text, a line in and lines out, the history and a hint |
+| `ConsoleLine` and `ConsoleLevel` | A line a console shows and whether it was entered, plain, a warning or an error, which a drawer colors it by |
 | `OverlayModel`, `OverlayPlace` and `FrameStats` | The debug overlay's content with no drawing, named sections of lines a host fills in four places, asked four times a second, the last 240 frames' times and their statistics, the last, the average and the 1% low |
 | `PanelModel`, `PanelPage`, `PanelRow`, `PanelRowKind` and `PanelInput` | The settings panel's content with no drawing, a page for each first word of the settings' names and a host's own pages of settings, actions and text, steered by up, down, left, right, accept and back |
 | `DiagnosticKeys` and `KeyAction` | The five keys as text settings a player rebinds, F1 hiding the interface, F2 asking for a screenshot, F3 the overlay, F4 the panel and F5 the console, each taken on its key's release and never by a chord |
@@ -174,20 +173,35 @@ drawnPanel.Draw(host.WindowSize);
 foreach (var key in host.KeysPressed) keys.KeyDown(key, typing: drawnConsole.Typing);
 ```
 
-![The console and the settings panel drawn with ImGui](.github/assets/readings/2026-11-21-item-4-console-and-panel.webp)
+![The console with its popup of candidates and the ghost text](.github/assets/readings/2026-11-21-item-4-console-popup.webp)
 
 - The console is a window across the top, `ImGuiConsole.Height` of the host's window, 0.4 by
-  default. Its field takes the keyboard as the console opens, Enter submits the line, Tab completes
-  it, and up and down go through the history. `ImGuiConsole.Typing` says whether the field has the
-  keyboard, which the host gives `DiagnosticKeys.KeyDown`.
+  default, holding a plain list of every line, colored by the line's level, the field and the hint
+  under it. Its field takes the keyboard as the console opens.
+- The popup of candidates stands above the field once the player edited, as wide as the field, six
+  rows at most with the selected one banded, and the ghost text follows what is typed, dimmed, where
+  the selected candidate begins with the word being typed. Up and down move the selection while the
+  popup shows and walk the history otherwise, Tab fills the selected candidate and Enter runs the
+  line. `ImGuiConsole.Typing` says whether the field has the keyboard, which the host gives
+  `DiagnosticKeys.KeyDown`. The box and the ghost are drawn on ImGui's foreground list, so they
+  stand over the console whichever window has the focus.
+- The candidates are the names of commands and settings that begin with the word and then those
+  with a later dotted part that does, so `vsync` offers `render.vsync` and Tab fills it. After a
+  setting's name they are its choices.
+
+![The settings panel on the page of the settings named render](.github/assets/readings/2026-11-21-item-4-panel-page.webp)
+
 - The panel is a window in the middle, sized to its rows, which ImGui measures in the first frame
   and draws from the second. With `ImGuiPanel.ReadsKeys`, the default, it reads the arrows, Enter
   and Escape and a pad's directions, lower face button and right face button from ImGui's keys, so
   a host that feeds ImGui its input feeds the panel, a pad's where the host's backend sets
   `ImGuiBackendFlags.HasGamepad`. A host that steers the model itself turns it off.
-- A host without ImGui draws the same models its own way, `ConsoleModel.Lines`, the line it
-  enters and `ConsoleModel.Hint` for the console, and `PanelModel.Title` and `PanelModel.Rows` for
-  the panel.
+- A host without ImGui draws the same models its own way, for the console `ConsoleModel.Lines`,
+  `ConsoleModel.Typed`, `ConsoleModel.PopupShown`, `ConsoleModel.Candidates` with
+  `ConsoleModel.SelectedIndex` and `ConsoleModel.FirstVisible`, `ConsoleModel.Ghost` and
+  `ConsoleModel.Hint`, feeding `ConsoleModel.Edit`, `ConsoleModel.Navigate`,
+  `ConsoleModel.Accept` and `ConsoleModel.Enter`, and for the panel `PanelModel.Title` and
+  `PanelModel.Rows`.
 
 ### What a generator emits
 

@@ -111,24 +111,28 @@ Number = 2,                                              // A number with a frac
 Choice = 3,                                              // One of an enum's names
 Text = 4,                                                // Any text, a String
 
-class ConsoleModel                                       // A console's content with no drawing, the lines it shows, the line being entered's history, completion and hint, over a Registry
+class ConsoleModel                                       // A console's content with no drawing, a plain list of every line written, the line being entered with the candidates its start leaves, their selection and the ghost text, and the history, over a Registry
 int DefaultDepth = 2000;                                 // How many lines the console keeps by default, the oldest dropped first
+int PopupRows = 6;                                       // How many rows of candidates the popup shows at most
 ConsoleModel(Registry registry, int depth = 2000);       // Makes a console over a registry
 bool Open { get; set; }                                  // Whether the console is shown, which the console's key turns over
-bool ShowInfo { get; set; }                              // Whether Lines gives the plain lines and the entered ones
-bool ShowWarnings { get; set; }                          // Whether Lines gives the warnings
-bool ShowErrors { get; set; }                            // Whether Lines gives the errors
-string Search { get; set; }                              // A text Lines keeps the lines holding it of, whatever its case
 long Written { get; }                                    // How many lines were ever written, which a drawer compares to know that a line came
 IReadOnlyList<string> History { get; }                   // The lines entered, oldest first, a line entered twice in a row held once
+string Typed { get; set; }                               // The line being entered
+IReadOnlyList<string> Candidates { get; }                // The names or values the word being typed could be, the names that begin with it first and then those with a later dotted part that begins with it, each in order, or none
+bool PopupShown { get; }                                 // Whether the popup of candidates is shown, once the player edited and a candidate is left
+int SelectedIndex { get; }                               // The selected candidate's index, or -1 where there is none
+int FirstVisible { get; }                                // The index of the first of the PopupRows rows the popup shows, which keeps the selected candidate in view
+string Ghost { get; }                                    // The rest of the selected candidate after the word being typed, where the popup shows and the candidate begins with the word, whatever its case, else empty
+string Hint { get; }                                     // What a console shows under the line being entered, a command's usage or a setting in a sentence, of the name typed or of the one name the typed start leaves, or empty
 void Write(ConsoleLevel level, string text);             // Writes a text into the console, a line for each of its lines
-IReadOnlyList<ConsoleLine> Lines();                      // The kept lines the filters let through, oldest first
+IReadOnlyList<ConsoleLine> Lines();                      // Every kept line, oldest first
 void Clear();                                            // Drops every kept line
 Answer Submit(string line);                              // Runs an entered line, writes it and its answer into the console and keeps it in the history
-string Back(string current);                             // The line before the one shown in the history, as the up key asks for it
-string Forward(string current);                          // The line after the one shown in the history, and past the last the line that was being entered
-Completion Complete(string typed);                       // What the typed start of a line completes to, by prefix
-string Hint(string typed);                               // What a console shows under the line being entered, a command's usage or a setting in a sentence, of the name typed or of the one name the typed start leaves
+Answer Enter();                                          // Runs the line being entered as the Enter key does, and empties it
+void Edit(string text);                                  // The player's edit of the line being entered, which shows the popup
+void Navigate(int direction);                            // Takes the up key, which is -1, or the down key, which is 1, and moves the popup's selection where the popup shows, past the last candidate to the first and back, else walks the history
+bool Accept();                                           // Fills the selected candidate in place of the word being typed, followed by a space, as the Tab key does, the first candidate where none is selected, and says whether there was one
 
 record struct ConsoleLine                                // One line a console shows
 ConsoleLine(string Text, ConsoleLevel Level);
@@ -140,11 +144,6 @@ Input = 0,                                               // A line the player en
 Info = 1,                                                // An answer or a host's plain line
 Warning = 2,                                             // A host's warning
 Error = 3,                                               // A failed line's answer or a host's error
-
-record Completion                                        // What a typed start of a line completes to
-Completion(string Text, IReadOnlyList<string> Candidates);
-string Text { get; init; }                               // The line with the common start of every candidate in place of its last word, followed by a space where one candidate is left
-IReadOnlyList<string> Candidates { get; init; }          // The names or the values the last word could be, in order
 
 class OverlayModel                                       // The debug overlay's content with no drawing, named sections of lines a host fills, the last frames' times and their statistics
 int StripFrames = 240;                                   // How many frame times are kept, the strip's width in frames
@@ -253,7 +252,6 @@ class ImGuiConsole                                       // Draws a ConsoleModel
 ImGuiConsole(ConsoleModel model);
 float Height { get; set; }                               // The share of the host's window's height the console takes, 0.4 by default
 bool Typing { get; }                                     // Whether the console's field had the keyboard when it was last drawn, which a host gives its key reading as typing
-string Typed { get; set; }                               // The line being entered
 void Draw(Vector2 window);                               // Draws the console where its model is open, and nothing where it is not
 
 class ImGuiPanel                                         // Draws a PanelModel with Dear ImGui, in a host's ImGui frame

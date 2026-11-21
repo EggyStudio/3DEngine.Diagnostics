@@ -21,27 +21,41 @@ public enum ConsoleLevel
 /// <param name="Level">What the line is.</param>
 public readonly record struct ConsoleLine(string Text, ConsoleLevel Level);
 
-/// <summary>What a typed start of a line completes to.</summary>
-/// <param name="Text">
-/// The line with the common start of every candidate in place of its last word, followed by a
-/// space where one candidate is left.
-/// </param>
-/// <param name="Candidates">The names or the values the last word could be, in order.</param>
-public sealed record Completion(string Text, IReadOnlyList<string> Candidates);
-
 /// <summary>
-/// A console's content with no drawing, the lines it shows, the line being entered's history,
-/// completion and hint, over a <see cref="Registry"/>.
+/// A console's content with no drawing, a plain list of every line written, the line being
+/// entered with the candidates its start leaves, their selection and the ghost text, and the
+/// history, over a <see cref="Registry"/>.
 /// </summary>
 /// <remarks>
+/// <para>
+/// The line being entered is <see cref="Typed"/>. A player's edit goes in through
+/// <see cref="Edit"/>, which builds the <see cref="Candidates"/> of the word being typed, and a
+/// line set by the program or recalled from the history builds them without showing them. The
+/// popup of candidates is shown once the player edited, <see cref="PopupShown"/>, and
+/// <see cref="Ghost"/> is the rest of the selected candidate after what is typed. Up and down
+/// move the selection while the popup shows and walk the history otherwise,
+/// <see cref="Navigate"/>, and Tab fills the selected candidate, <see cref="Accept"/>.
+/// </para>
+/// <para>
+/// A word is completed by the names of commands and settings that begin with it, then those with a
+/// later dotted part that begins with it, so <c>vsync</c> finds <c>render.vsync</c>. After a
+/// setting's name it is completed by the setting's choices, and where a command's argument is of
+/// the kind <c>name</c> by names.
+/// </para>
+/// <para>
 /// <see cref="Write(ConsoleLevel, string)"/> and <see cref="Lines"/> are safe from any thread, so a
 /// host's log and a socket's late answer write from where they are. Everything else is called on
-/// the host's thread, <see cref="Submit"/> among it, which runs the command there.
+/// the host's thread, <see cref="Submit"/> and <see cref="Enter"/> among it, which run the command
+/// there.
+/// </para>
 /// </remarks>
 public sealed class ConsoleModel
 {
     /// <summary>How many lines the console keeps by default, the oldest dropped first.</summary>
     public const int DefaultDepth = 2000;
+
+    /// <summary>How many rows of candidates the popup shows at most.</summary>
+    public const int PopupRows = 6;
 
     private const int HistoryDepth = 100;
 
@@ -52,6 +66,11 @@ public sealed class ConsoleModel
     private readonly int _depth;
     private int _at;
     private string _draft = "";
+    private string _typed = "";
+    private bool _edited;
+    private IReadOnlyList<string> _candidates = [];
+    private int _selected = -1;
+    private int _first;
 
     /// <summary>Makes a console over a registry.</summary>
     /// <param name="registry">The commands and the settings its lines run.</param>
@@ -66,19 +85,6 @@ public sealed class ConsoleModel
     /// <summary>Whether the console is shown, which the console's key turns over.</summary>
     public bool Open { get; set; }
 
-    /// <summary>Whether <see cref="Lines"/> gives the plain lines and the entered ones.</summary>
-    public bool ShowInfo { get; set; } = true;
-
-    /// <summary>Whether <see cref="Lines"/> gives the warnings.</summary>
-    public bool ShowWarnings { get; set; } = true;
-
-    /// <summary>Whether <see cref="Lines"/> gives the errors.</summary>
-    public bool ShowErrors { get; set; } = true;
-
-    /// <summary>A text <see cref="Lines"/> keeps the lines holding it of, whatever its
-    /// case.</summary>
-    public string Search { get; set; } = "";
-
     /// <summary>
     /// How many lines were ever written, which a drawer compares to know that a line came.
     /// </summary>
@@ -87,8 +93,78 @@ public sealed class ConsoleModel
     /// <summary>The lines entered, oldest first, a line entered twice in a row held once.</summary>
     public IReadOnlyList<string> History => _history;
 
+    /// <summary>
+    /// The line being entered. Setting it replaces the line as the program does, and the popup
+    /// stays hidden until the player edits.
+    /// </summary>
+    public string Typed
+    {
+        get => _typed;
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            Replace(value, edited: false);
+        }
+    }
+
+    /// <summary>
+    /// The names or values the word being typed could be, the names that begin with it first and
+    /// then those with a later dotted part that begins with it, each in order, or none.
+    /// </summary>
+    public IReadOnlyList<string> Candidates => _candidates;
+
+    /// <summary>
+    /// Whether the popup of candidates is shown, once the player edited and a candidate is left.
+    /// </summary>
+    public bool PopupShown => _edited && _candidates.Count > 0;
+
+    /// <summary>The selected candidate's index, or -1 where there is none.</summary>
+    public int SelectedIndex => _selected;
+
+    /// <summary>
+    /// The index of the first of the <see cref="PopupRows"/> rows the popup shows, which keeps the
+    /// selected candidate in view.
+    /// </summary>
+    public int FirstVisible => _first;
+
+    /// <summary>
+    /// The rest of the selected candidate after the word being typed, where the popup shows and the
+    /// candidate begins with the word, whatever its case, else empty.
+    /// </summary>
+    public string Ghost
+    {
+        get
+        {
+            if (!PopupShown) return "";
+            var word = CurrentWord(_typed);
+            return _candidates[_selected].StartsWith(word, StringComparison.OrdinalIgnoreCase)
+                ? _candidates[_selected][word.Length..]
+                : "";
+        }
+    }
+
+    /// <summary>
+    /// What a console shows under the line being entered, a command's usage or a setting in a
+    /// sentence, of the name typed or of the one name the typed start leaves, or empty.
+    /// </summary>
+    public string Hint
+    {
+        get
+        {
+            var name = CommandLine.Parse(_typed).Name;
+            if (name.Length == 0) return "";
+            if (_registry.FindCommand(name) is null && _registry.FindSetting(name) is null)
+            {
+                if (_registry.Starting(name) is not [var only]) return "";
+                name = only;
+            }
+
+            return _registry.FindCommand(name)?.Usage ?? _registry.FindSetting(name)?.Describe() ?? "";
+        }
+    }
+
     /// <summary>Writes a text into the console, a line for each of its lines.</summary>
-    /// <param name="level">What the lines are.</param>
+    /// <param name="level">What the lines are, which a drawer colors them by.</param>
     /// <param name="text">The text.</param>
     public void Write(ConsoleLevel level, string text)
     {
@@ -102,16 +178,10 @@ public sealed class ConsoleModel
             }
     }
 
-    /// <summary>The kept lines the filters let through, oldest first.</summary>
+    /// <summary>Every kept line, oldest first.</summary>
     public IReadOnlyList<ConsoleLine> Lines()
     {
-        lock (_gate)
-            return _lines.Where(line => line.Level switch
-            {
-                ConsoleLevel.Warning => ShowWarnings,
-                ConsoleLevel.Error => ShowErrors,
-                _ => ShowInfo,
-            } && line.Text.Contains(Search, StringComparison.OrdinalIgnoreCase)).ToList();
+        lock (_gate) return _lines.ToList();
     }
 
     /// <summary>Drops every kept line.</summary>
@@ -123,6 +193,10 @@ public sealed class ConsoleModel
     /// <summary>
     /// Runs an entered line, writes it and its answer into the console and keeps it in the history.
     /// </summary>
+    /// <remarks>
+    /// The line being entered is left as it is, so a line a socket handed over does not take the
+    /// player's typing with it.
+    /// </remarks>
     /// <param name="line">The line as entered.</param>
     public Answer Submit(string line)
     {
@@ -139,83 +213,108 @@ public sealed class ConsoleModel
         return answer;
     }
 
-    /// <summary>The line before the one shown in the history, as the up key asks for it.</summary>
-    /// <param name="current">The line being entered, kept to come back to.</param>
-    public string Back(string current)
+    /// <summary>Runs the line being entered as the Enter key does, and empties it.</summary>
+    public Answer Enter()
     {
-        if (_history.Count == 0) return current;
-        if (_at >= _history.Count) (_at, _draft) = (_history.Count, current);
-        if (_at > 0) _at--;
-        return _history[_at];
+        var answer = Submit(_typed);
+        Replace("", edited: false);
+        return answer;
+    }
+
+    /// <summary>The player's edit of the line being entered, which shows the popup.</summary>
+    /// <param name="text">The line after the edit.</param>
+    public void Edit(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        if (text == _typed) return;
+        Replace(text, edited: true);
     }
 
     /// <summary>
-    /// The line after the one shown in the history, and past the last the line that was being
-    /// entered.
+    /// Takes the up key, which is -1, or the down key, which is 1, and moves the popup's selection
+    /// where the popup shows, past the last candidate to the first and back, else walks the
+    /// history.
     /// </summary>
-    /// <param name="current">The line shown.</param>
-    public string Forward(string current)
-    {
-        if (_at >= _history.Count) return current;
-        _at++;
-        return _at == _history.Count ? _draft : _history[_at];
-    }
-
-    /// <summary>What the typed start of a line completes to, by prefix.</summary>
     /// <remarks>
-    /// The first word completes to the names of commands and settings. A later word completes to a
-    /// setting's choices after its name, and to names after a command whose argument at that place
-    /// is of the kind <c>name</c>.
+    /// Up in the history recalls the line before the one shown, keeping the line that was being
+    /// entered for the way back, and down past the last gives that line again. A recalled line
+    /// shows no popup.
     /// </remarks>
-    /// <param name="typed">The line up to the cursor.</param>
-    public Completion Complete(string typed)
+    /// <param name="direction">Below zero for up, else down.</param>
+    public void Navigate(int direction)
     {
-        ArgumentNullException.ThrowIfNull(typed);
-        var start = typed.TrimStart();
-        var cut = start.LastIndexOfAny([' ', '\t']) + 1;
-        var (before, word) = (start[..cut], start[cut..]);
-        var candidates = Candidates(before, word);
-        if (candidates.Count == 0) return new Completion(typed, candidates);
-
-        var common = candidates[0];
-        foreach (var candidate in candidates)
+        if (PopupShown)
         {
-            var same = 0;
-            while (same < common.Length && same < candidate.Length && char.ToLowerInvariant(common[same]) == char.ToLowerInvariant(candidate[same])) same++;
-            common = common[..same];
+            var count = _candidates.Count;
+            _selected = ((_selected + (direction < 0 ? -1 : 1)) % count + count) % count;
+            if (_selected < _first) _first = _selected;
+            else if (_selected >= _first + PopupRows) _first = _selected - PopupRows + 1;
+            return;
         }
 
-        return new Completion(before + common + (candidates.Count == 1 ? " " : ""), candidates);
+        if (direction < 0)
+        {
+            if (_history.Count == 0) return;
+            if (_at >= _history.Count) (_at, _draft) = (_history.Count, _typed);
+            if (_at > 0) _at--;
+            Replace(_history[_at], edited: false);
+        }
+        else if (_at < _history.Count)
+        {
+            _at++;
+            Replace(_at == _history.Count ? _draft : _history[_at], edited: false);
+        }
     }
 
     /// <summary>
-    /// What a console shows under the line being entered, a command's usage or a setting in a
-    /// sentence, of the name typed or of the one name the typed start leaves.
+    /// Fills the selected candidate in place of the word being typed, followed by a space, as the
+    /// Tab key does, the first candidate where none is selected, and says whether there was one.
     /// </summary>
-    /// <param name="typed">The line being entered.</param>
-    public string Hint(string typed)
+    /// <remarks>
+    /// The candidates are those of the line as it stands, so Tab completes a recalled line too,
+    /// and the popup stays hidden until the next edit.
+    /// </remarks>
+    public bool Accept()
     {
-        var name = CommandLine.Parse(typed ?? throw new ArgumentNullException(nameof(typed))).Name;
-        if (name.Length == 0) return "";
-        if (_registry.FindCommand(name) is null && _registry.FindSetting(name) is null)
-        {
-            if (_registry.Starting(name) is not [var only]) return "";
-            name = only;
-        }
-
-        return _registry.FindCommand(name)?.Usage ?? _registry.FindSetting(name)?.Describe() ?? "";
+        if (_candidates.Count == 0) return false;
+        var word = CurrentWord(_typed);
+        Replace(_typed[..^word.Length] + _candidates[Math.Max(_selected, 0)] + " ", edited: false);
+        return true;
     }
 
-    private IReadOnlyList<string> Candidates(string before, string word)
+    private void Replace(string text, bool edited)
     {
-        var words = CommandLine.Split(before);
-        if (words.Count == 0) return _registry.Starting(word);
+        (_typed, _edited) = (text, edited);
+        _candidates = Find(text);
+        (_selected, _first) = (_candidates.Count > 0 ? 0 : -1, 0);
+    }
+
+    private static string CurrentWord(string typed) => typed[(typed.LastIndexOfAny([' ', '\t']) + 1)..];
+
+    private IReadOnlyList<string> Find(string typed)
+    {
+        var word = CurrentWord(typed);
+        var words = CommandLine.Split(typed[..^word.Length]);
+        if (words.Count == 0) return word.Length == 0 ? [] : Names(word);
         if (_registry.FindSetting(words[0]) is { } setting)
             return words.Count == 1
-                ? setting.Choices.Where(choice => choice.StartsWith(word, StringComparison.OrdinalIgnoreCase)).ToList()
+                ? setting.Choices.Where(choice => choice.StartsWith(word, StringComparison.OrdinalIgnoreCase)
+                    && !choice.Equals(word, StringComparison.OrdinalIgnoreCase)).ToList()
                 : [];
-        return _registry.FindCommand(words[0]) is { } command && words.Count <= command.Arguments.Count && command.Arguments[words.Count - 1].Kind == "name"
-            ? _registry.Starting(word)
+        return _registry.FindCommand(words[0]) is { } command && words.Count <= command.Arguments.Count
+            && command.Arguments[words.Count - 1].Kind == "name"
+            ? Names(word)
             : [];
+    }
+
+    // The names that begin with the word, then those with a later dotted part that does. A name
+    // the word spells out is left out, since it is complete.
+    private List<string> Names(string word)
+    {
+        var all = _registry.Starting("").Where(name => !name.Equals(word, StringComparison.OrdinalIgnoreCase)).ToList();
+        var first = all.Where(name => name.StartsWith(word, StringComparison.OrdinalIgnoreCase));
+        var later = all.Where(name => !name.StartsWith(word, StringComparison.OrdinalIgnoreCase)
+            && name.Split('.').Skip(1).Any(part => part.StartsWith(word, StringComparison.OrdinalIgnoreCase)));
+        return [.. first, .. later];
     }
 }
