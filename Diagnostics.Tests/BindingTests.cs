@@ -29,6 +29,8 @@ public sealed class BindingTests : IDisposable
 
         public string Screenshot(string? path) => $"Wrote {path ?? "shot.png"}.";
 
+        public void LoadInBackground(string path, Action<string> done) => Task.Run(() => done($"Loaded {path}.")).Wait();
+
         public void Log(string line) => Logged.Add(line);
 
         public int Entities => 7;
@@ -95,16 +97,28 @@ public sealed class BindingTests : IDisposable
         var host = new Host(Path.Combine(_folder, "settings.txt"));
         // The README's block from here to the end marker, word for word.
         // Once, as the host starts, on any thread.
+        // The console comes first, for a command to write to.
         var registry = Registry.Process;
+        var console = new ConsoleModel(registry);
         registry.Add(new Command("screen.shot", "Writes a picture of the frame.", "screen.shot [<path>]",
             line => new Answer(host.Screenshot(line.Words.Count > 0 ? line.Words[0] : null))));
+        registry.Add(new Command("scene.load", "Loads a scene in the background.", "scene.load <path>",
+            line =>
+            {
+                if (line.Words.Count != 1) return Answer.Fail(Answer.BadArgument, "scene.load takes a path.");
+                host.LoadInBackground(line.Words[0], done: text => console.Write(ConsoleLevel.Info, text));
+                return new Answer($"Loading {line.Words[0]}.");
+            })
+        {
+            Arguments = [new("path", "path")],
+        });
         registry.Add(new Setting<bool>("render.vsync", "Whether a frame waits for the display.", true,
             host.GetVsync, host.SetVsync) { EnvironmentVariable = "GAME_VSYNC" });
 
         // Once the settings are added, on the host's thread.
+        // The file's values go through the setters and a refused line comes back as text.
         var file = new SettingsFile(host.SettingsPath);
         foreach (var refusal in file.Read(registry)) host.Log(refusal);
-        var console = new ConsoleModel(registry);
 
         // From any thread, a line of the host's log or a command's late answer.
         console.Write(ConsoleLevel.Warning, "The shader cache is cold.");
@@ -122,6 +136,11 @@ public sealed class BindingTests : IDisposable
         Assert.Equal("render.vsync off\n", File.ReadAllText(host.SettingsPath));
         Assert.Equal("Wrote a.png.", registry.Run("screen.shot a.png").Text);
         Assert.Equal(3, console.Lines().Count);
-        Assert.True(registry.Remove("screen.shot") && registry.Remove("render.vsync"));
+
+        // The late line is written from the task the host handed the work to.
+        Assert.Equal("Loading a.scene.", registry.Run("scene.load a.scene").Text);
+        Assert.Equal("Loaded a.scene.", console.Lines()[^1].Text);
+        Assert.Equal(Answer.BadArgument, registry.Run("scene.load").Code);
+        Assert.True(registry.Remove("screen.shot") && registry.Remove("scene.load") && registry.Remove("render.vsync"));
     }
 }

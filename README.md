@@ -63,18 +63,36 @@ The module opens no window, reads no key and draws nothing in its core, so a bin
 code that adds its commands and settings, hands lines over and draws the models its own way. `host`
 stands for the engine's own calls, whatever it names them.
 
+A binding is three steps, each of which stands without the ones after it. The registry and the
+commands come first, added by hand or by a generator that reads `CommandAttribute`, and with them a
+host can run a line. The console, the overlay's sections and the keys come second, and the settings
+with the panel and the settings file third. The block below holds the registry, the console, the
+file and a line run, and the section after it the overlay, the panel and the keys.
+
 ```csharp
 // Once, as the host starts, on any thread.
+// The console comes first, for a command to write to.
 var registry = Registry.Process;
+var console = new ConsoleModel(registry);
 registry.Add(new Command("screen.shot", "Writes a picture of the frame.", "screen.shot [<path>]",
     line => new Answer(host.Screenshot(line.Words.Count > 0 ? line.Words[0] : null))));
+registry.Add(new Command("scene.load", "Loads a scene in the background.", "scene.load <path>",
+    line =>
+    {
+        if (line.Words.Count != 1) return Answer.Fail(Answer.BadArgument, "scene.load takes a path.");
+        host.LoadInBackground(line.Words[0], done: text => console.Write(ConsoleLevel.Info, text));
+        return new Answer($"Loading {line.Words[0]}.");
+    })
+{
+    Arguments = [new("path", "path")],
+});
 registry.Add(new Setting<bool>("render.vsync", "Whether a frame waits for the display.", true,
     host.GetVsync, host.SetVsync) { EnvironmentVariable = "GAME_VSYNC" });
 
 // Once the settings are added, on the host's thread.
+// The file's values go through the setters and a refused line comes back as text.
 var file = new SettingsFile(host.SettingsPath);
 foreach (var refusal in file.Read(registry)) host.Log(refusal);
-var console = new ConsoleModel(registry);
 
 // From any thread, a line of the host's log or a command's late answer.
 console.Write(ConsoleLevel.Warning, "The shader cache is cold.");
@@ -87,10 +105,11 @@ if (!answer.Done) host.Log($"{answer.Code} {answer.Text}");
 file.Write(registry);
 ```
 
-`Diagnostics.Example` is a console program with no window that binds the core this way, three
-commands, four settings of four kinds, a settings file read at the start and written at the end,
-and lines from its arguments or standard input run through a `ConsoleModel`. A test of the module
-runs it with scripts of lines and holds its output.
+`Diagnostics.Example` is a console program with no window that binds the core this way, four
+commands of which `greet.later` answers late through `ConsoleModel.Write`, four settings of four
+kinds, a settings file read at the start and written at the end, and lines from its arguments or
+standard input run through a `ConsoleModel`. A test of the module runs it with scripts of lines and
+holds its output.
 
 ```bash
 dotnet run --project Diagnostics.Example -- "greet.hello" "greet.style shout" "greet.hello Ada"
@@ -105,8 +124,12 @@ It stands on these conventions.
   `ConsoleModel.Lines` are safe from any thread. `Registry.Run`, `ConsoleModel.Submit`, a setting's
   set and the settings file are the host's thread's, since a command and a setter run where they are
   called. A host that takes lines from a socket hands each to its own thread before it runs.
-- A command answers at once. An answer that comes frames later is the host's to keep, and the host
-  writes it with `ConsoleModel.Write` when it has it.
+- A command returns its answer at once. Where its work is not done by then it returns a sentence
+  that says so and writes the result with `ConsoleModel.Write` when the work ends, from whatever
+  thread, as `scene.load` does above. That line stands at the end of the console, below whatever
+  was written since, not under the line that asked, and it carries no code, so a failure is written
+  at `ConsoleLevel.Error`. A command reads the settings it needs before it hands the work to
+  another thread, since a setting's value is the host's thread's.
 - A failure's code is capitals with underscores. The module's own are `NO_SUCH_COMMAND`,
   `BAD_ARGUMENT`, `OUT_OF_RANGE` and `FAILED`, and a host's command gives its own through
   `Answer.Fail`.
@@ -207,19 +230,36 @@ foreach (var key in host.KeysPressed) keys.KeyDown(key, typing: drawnConsole.Typ
 
 The module reads no attribute itself. A host whose commands are static methods marked with
 `CommandAttribute` keeps the generator that finds them, and for each method it emits one call that
-adds a `Command` to `Registry.Process` as the assembly loads, its usage written from the method's
-parameters, its run reading them from the line's words and answering with the text the method
-returns or with `Answer.Fail` and the host's code.
+adds a `Command` to `Registry.Process` as the assembly loads, from a module initializer, which is
+safe since adding is safe from any thread. The usage is written from the method's parameters, and
+the run reads them from the line's words and answers with the text the method returns or with
+`Answer.Fail` and the host's code.
 
 ```csharp
+// What the author writes.
+public static class Commands
+{
+    [Command("entity.move", "Moves an entity.")]
+    public static string Move(int id, float x, float y, float z) => scene.Move(id, x, y, z);
+}
+
+// What the generator emits for it.
 Registry.Process.Add(new Command("entity.move", "Moves an entity.", "entity.move <id> <x> <y> <z>",
     line => line.Words.Count == 4
-        ? new Answer(Commands.Move(int.Parse(line.Words[0]), line.Words[1], line.Words[2], line.Words[3]))
-        : Answer.Fail(Answer.BadArgument, "entity.move takes an id and three numbers."))
+        && int.TryParse(line.Words[0], out var id)
+        && float.TryParse(line.Words[1], CultureInfo.InvariantCulture, out var x)
+        && float.TryParse(line.Words[2], CultureInfo.InvariantCulture, out var y)
+        && float.TryParse(line.Words[3], CultureInfo.InvariantCulture, out var z)
+            ? new Answer(Commands.Move(id, x, y, z))
+            : Answer.Fail(Answer.BadArgument, "entity.move takes an id and three numbers."))
 {
     Arguments = [new("id", "int"), new("x", "float"), new("y", "float"), new("z", "float")],
 });
 ```
+
+An argument's kind is the host's own word for what the word is. Only `name` means something to the
+module, a command's or a setting's name that the console completes, and a parameter that has a
+default is an argument with `Optional` set, which the usage shows in brackets.
 
 A command that takes its line whole, as a fragment of code or a path with blanks, declares one
 argument with `TakesLine` and reads `CommandLine.Rest`.

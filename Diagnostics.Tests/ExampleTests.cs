@@ -69,6 +69,7 @@ public sealed class ExampleTests : IDisposable
             greet.echo
             greet.exclaim off
             greet.hello
+            greet.later
             greet.name world
             greet.repeat 2
             greet.style Shout
@@ -83,6 +84,25 @@ public sealed class ExampleTests : IDisposable
         // Only the three values that differ from their defaults are kept, the one for the next
         // start among them.
         Assert.Equal("greet.exclaim on\ngreet.repeat 2\ngreet.style Shout\n", File.ReadAllText(Settings));
+    }
+
+    [Fact]
+    public void A_Command_That_Answers_Late_Writes_Its_Line_Through_The_Console_After_The_Others()
+    {
+        var (exit, output) = Run(["greet.later Ada", "greet.hello"]);
+
+        Assert.Equal(0, exit);
+        Assert.Equal(
+            """
+            > greet.later Ada
+            Looking for Ada.
+            > greet.hello
+            Hello, world.
+            Hello, Ada, found a moment later.
+            settings.txt unchanged
+
+            """.ReplaceLineEndings("\n"),
+            output);
     }
 
     [Fact]

@@ -16,9 +16,9 @@ public enum GreetingStyle
 }
 
 /// <summary>
-/// A console program that binds the core as a host does, three commands and four settings of
-/// four kinds, a settings file read at the start and written at the end, and lines run through a
-/// <see cref="ConsoleModel"/> whose lines are printed.
+/// A console program that binds the core as a host does, four commands, one of which answers
+/// late, and four settings of four kinds, a settings file read at the start and written at the
+/// end, and lines run through a <see cref="ConsoleModel"/> whose lines are printed.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -53,6 +53,7 @@ public static class GreetingExample
     public static int Run(string[] lines, TextReader input, TextWriter output, string folder)
     {
         var registry = new Registry();
+        var console = new ConsoleModel(registry);
         var name = new Setting<string>("greet.name", "Whom the greeting is for.", "world");
         var repeat = new Setting<int>("greet.repeat", "How many times the greeting is said.", 1) { Low = 1, High = 5 };
         var style = new Setting<GreetingStyle>("greet.style", "How the greeting is written.", GreetingStyle.Plain)
@@ -102,16 +103,39 @@ public static class GreetingExample
             Arguments = [new("line", "text", TakesLine: true)],
         });
 
+        // A command whose answer is not ready answers at once and writes the rest through the
+        // console where it is, from whatever thread it ends on, since Write is safe from any. A
+        // host's work ends when it ends, and here the work waits for the lines to be run, so the
+        // output is the same every run.
+        var gate = new TaskCompletionSource();
+        var late = new List<Task>();
+        registry.Add(new Command("greet.later", "Answers at once and greets again a moment later.", "greet.later [<name>]",
+            line =>
+            {
+                // The setting is read here, on the host's thread, and not in the task.
+                var who = line.Words.Count > 0 ? line.Words[0] : name.Value;
+                late.Add(Task.Run(async () =>
+                {
+                    await gate.Task;
+                    console.Write(ConsoleLevel.Info, $"Hello, {who}, found a moment later.");
+                }));
+                return new Answer($"Looking for {who}.");
+            })
+        {
+            Arguments = [new("name", "text", Optional: true)],
+        });
+
         // The file is read once the settings are added, and a value it holds that a setting
         // refuses is said and leaves that setting at its default.
         var file = new SettingsFile(Path.Combine(folder, "settings.txt"));
-        var console = new ConsoleModel(registry);
         foreach (var refusal in file.Read(registry)) console.Write(ConsoleLevel.Warning, refusal);
 
         if (lines.Length == 0) lines = ReadLines(input);
         var failed = false;
         foreach (var line in lines)
             failed |= !console.Submit(line).Done;
+        gate.SetResult();
+        Task.WaitAll([.. late]);
 
         foreach (var line in console.Lines())
             output.WriteLine(line.Level switch
