@@ -24,6 +24,7 @@ Command? FindCommand(string name);                       // The command of a nam
 Setting? FindSetting(string name);                       // The setting of a name, or null
 IReadOnlyList<string> Starting(string prefix);           // The names of the commands and the settings that begin with a prefix, in order
 Answer Run(string line);                                 // Runs a line, a command or the reading or setting of a setting
+event Action<Setting>? SettingAdded;                     // Raised after a setting is added, on the thread that added it and outside the registry's lock, so a handler finds the setting by its name and may add or remove others
 
 record Command                                           // One console command, its name, what it does, the words it takes and what runs it
 Command(string Name, string Summary, string Usage, Func<CommandLine, Answer> Run);
@@ -53,6 +54,8 @@ record Answer                                            // What a command or a 
 string NoSuchCommand = "NO_SUCH_COMMAND";                // The code of a line whose first word names no command and no setting
 string BadArgument = "BAD_ARGUMENT";                     // The code of a word a command or a setting cannot read
 string OutOfRange = "OUT_OF_RANGE";                      // The code of a number outside a setting's range
+string NotSettable = "NOT_SETTABLE";                     // The code of a set of a setting that only reads
+string Refused = "REFUSED";                              // The code of a value the host's setter refused, with the setter's reason
 string Failed = "FAILED";                                // The code of a command whose run threw
 Answer(string Text, string? Code = null, Exception? Error = null);
 string Text { get; init; }                               // What a console shows, one line or several
@@ -72,12 +75,14 @@ string Summary { get; }                                  // What the setting dec
 SettingKind Kind { get; }                                // What the value is
 bool AtNextStart { get; init; }                          // Whether a set takes effect at the next start, the running value staying until then
 bool Saved { get; init; }                                // Whether the settings file keeps the value, which it does by default
+bool ReadOnly { get; init; }                             // Whether the setting only reads, shown with its value and answering every set, step and reset as NotSettable
 string? EnvironmentVariable { get; init; }               // The environment variable that overrides the value while it is set, or null for none
 bool Overridden { get; }                                 // Whether the environment gives the running value, EnvironmentVariable being set to a value the setting takes
 string? EnvironmentRefusal { get; }                      // Why the environment's value was refused, or null where it was taken or none is set
 string Text { get; }                                     // The running value as text
 string DefaultText { get; }                              // The default as text
 string StoredText { get; }                               // The value the settings file keeps as text, the running one, or the one last set where the environment overrides it or it waits for the next start
+string SavedText { get; }                                // The value the settings file keeps as text, the one a player last set through the console, the panel or the file, or the default where none was
 string? PendingText { get; }                             // The value that takes effect at the next start as text, or null where none waits
 IReadOnlyList<string> Choices { get; }                   // The texts the value takes where they are few, an enum's names or off and on
 string Takes { get; }                                    // What the value takes in words, its range or its choices, empty for any text
@@ -88,8 +93,8 @@ Answer Move(int direction);                              // Moves the value one 
 string Describe();                                       // The setting in a sentence, its value, its default where it differs, and whether the environment gives it or a value waits for the next start
 event Action<Setting>? Changed;                          // Raised after a set changed the running or the stored value
 
-class Setting<T>                                         // A setting of one type, a Boolean, an Int32, a Single, a Double, an enum or a String
-Setting(string name, string summary, T default, Func<T>? get = null, Action<T>? set = null);  // Makes a setting
+class Setting<T>                                         // A setting of one type, a Boolean, an Int32, a UInt32, a UInt64, a Single, a Double, an enum or a String
+Setting(string name, string summary, T default, Func<T>? get = null, Action<T>? set = null, Func<T, string?>? apply = null);  // Makes a setting
 T Default { get; }                                       // The value where nothing sets it
 double? Low { get; init; }                               // The lowest number the value takes, or null for no bound
 double? High { get; init; }                              // The highest number the value takes, or null for no bound
@@ -101,6 +106,7 @@ string? EnvironmentRefusal { get; }                      // Why the environment'
 string Text { get; }                                     // The running value as text
 string DefaultText { get; }                              // The default as text
 string StoredText { get; }                               // The value the settings file keeps as text, the running one, or the one last set where the environment overrides it or it waits for the next start
+string SavedText { get; }                                // The value the settings file keeps as text, the one a player last set through the console, the panel or the file, or the default where none was
 IReadOnlyList<string> Choices { get; }                   // The texts the value takes where they are few, an enum's names or off and on
 string Takes { get; }                                    // What the value takes in words, its range or its choices, empty for any text
 Answer TrySet(T value);                                  // Sets the value, or refuses one out of its range with its reason
@@ -108,7 +114,7 @@ Answer Move(int direction);                              // Moves the value one 
 
 enum SettingKind                                         // What a setting's value is, which decides how a console reads it and a panel steps it
 Toggle = 0,                                              // On or off, a Boolean
-Whole = 1,                                               // A whole number, an Int32
+Whole = 1,                                               // A whole number, an Int32, a UInt32 or a UInt64
 Number = 2,                                              // A number with a fraction, a Single or a Double
 Choice = 3,                                              // One of an enum's names
 Text = 4,                                                // Any text, a String
@@ -198,13 +204,14 @@ PanelPage AddPage(PanelPage page);                       // Adds a row that open
 PanelPage AddText(string text);                          // Adds a line of text
 
 record PanelRow                                          // A row of the settings panel as it is drawn
-PanelRow(PanelRowKind Kind, string Label, string Value, bool Selected, bool Pending, bool Overridden);
+PanelRow(PanelRowKind Kind, string Label, string Value, bool Selected, bool Pending, bool Overridden, bool ReadOnly = false);
 PanelRowKind Kind { get; init; }                         // What the row is
 string Label { get; init; }                              // The row's words on the left
 string Value { get; init; }                              // A setting's value as the player set it, on the right, and empty for another row
 bool Selected { get; init; }                             // Whether the row is the one the inputs act on
 bool Pending { get; init; }                              // Whether the value takes effect at the next start
 bool Overridden { get; init; }                           // Whether the environment holds the running value, the one shown being kept for the file
+bool ReadOnly { get; init; }                             // Whether the setting only reads, so the row shows its value and no input changes it
 
 enum PanelRowKind                                        // What a row of the settings panel is
 Setting = 0,                                             // A setting, its value stepped with left and right
@@ -247,6 +254,7 @@ SettingsFile For(string game);                           // The file of a game i
 IReadOnlyList<string> Read(Registry registry);           // Reads the file into a registry's settings as a start does, and gives each line it refused with its reason
 bool Write(Registry registry);                           // Writes the file from a registry's settings where its text would change, and says whether it wrote
 string Text(Registry registry);                          // The text Write writes for a registry's settings
+event Action<string>? Trouble;                           // Raised with a sentence where a line of the file was refused by a setting added after the read, or the file could not be written after such a setting was set
 ```
 
 ## The ImGui library

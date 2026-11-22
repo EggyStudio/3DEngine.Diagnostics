@@ -65,6 +65,21 @@ documents, the skeleton, the design, the code, then the engines taking it.
    lower edge on the field's upper edge with no gap, as wide as the field, the candidates' text over
    the typed text, a fact holding the join.
 
+6. **Five things a host found missing in the settings.** A host that registered some fifty settings
+    found five gaps and worked round none, so the core closes them in one commit with tests for
+    each. A setting can be made to read only, shown in the panel and the console with its value and
+    answered as not settable when a set is tried, with no word about a next start. A setter can
+    refuse a value with a reason, the console prints the reason, the panel's row stays at its old
+    value and the stored value does not change, which serves a set the host cannot apply at that
+    time. Whole numbers gain kinds without a sign, of four and of eight bytes, with their range
+    checked on a set. A number refuses both infinities beside NaN, with or without a High. A saved
+    setting keeps the value a player set, through the console, the panel or the file, and a value
+    the program itself wrote through its getter is not saved, so the file holds the player's choices
+    alone. The registry raises an event as a setting is added, and the saved file is applied to a
+    setting added after the start and written when such a setting is set, not only at the close. The
+    cheatsheet, the guide and the README's settings paragraph follow in the same commit, and the
+    README's captures are retaken only if what they show changes. No host is named.
+
 ## Verdicts
 
 None yet.

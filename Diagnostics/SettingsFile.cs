@@ -18,12 +18,22 @@ namespace Diagnostics;
 /// </para>
 /// <para>
 /// A host reads the file once its settings are added and writes it as the player leaves the
-/// settings or the program ends, both on its own thread.
+/// settings or the program ends, both on its own thread. The file keeps what a player set through
+/// the console, the panel or the file itself, <see cref="Setting.SavedText"/>, and never a value
+/// the program wrote through a getter.
+/// </para>
+/// <para>
+/// A setting added to the registry after the read is given the value its line holds, as a start
+/// gives it, and the file is written when such a setting is set, not only at the close, since a
+/// part of the program that loads late may not be there at the close. A line refused and a write
+/// that failed are told through <see cref="Trouble"/>, on the thread that added or set.
 /// </para>
 /// </remarks>
 public sealed class SettingsFile
 {
-    private readonly List<string> _kept = [];
+    private readonly List<(int Number, string Text)> _kept = [];
+    private readonly object _gate = new();
+    private Registry? _registry;
     private string? _held;
 
     /// <summary>Makes the file at a path, which is read and written when asked.</summary>
@@ -32,6 +42,12 @@ public sealed class SettingsFile
 
     /// <summary>The file's path.</summary>
     public string Path { get; }
+
+    /// <summary>
+    /// Raised with a sentence where a line of the file was refused by a setting added after the
+    /// read, or the file could not be written after such a setting was set.
+    /// </summary>
+    public event Action<string>? Trouble;
 
     /// <summary>
     /// The file of a game in the player's folder, <c>settings.txt</c> in a folder of the game's
@@ -51,34 +67,35 @@ public sealed class SettingsFile
     /// </summary>
     /// <remarks>
     /// A missing file reads as an empty one. A value a setting refuses leaves the setting at its
-    /// default and its line is not written again.
+    /// default and its line is not written again. The file then listens to the registry, so a
+    /// setting added later is given its line and written when it is set.
     /// </remarks>
     /// <param name="registry">The registry whose settings take the values.</param>
     public IReadOnlyList<string> Read(Registry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
-        _kept.Clear();
-        var refused = new List<string>();
-        _held = File.Exists(Path) ? File.ReadAllText(Path, Encoding.UTF8).ReplaceLineEndings("\n") : "";
-        var lines = _held.Split('\n');
-        // The text's last line end leaves an empty last part, which is no line of the file.
-        var count = lines.Length > 0 && lines[^1].Length == 0 ? lines.Length - 1 : lines.Length;
-        for (var i = 0; i < count; i++)
+        lock (_gate)
         {
-            var line = CommandLine.Parse(lines[i]);
-            if (registry.FindSetting(line.Name) is not { } setting)
+            if (_registry is not null) _registry.SettingAdded -= Added;
+            _registry = registry;
+            registry.SettingAdded += Added;
+            _kept.Clear();
+            var refused = new List<string>();
+            _held = File.Exists(Path) ? File.ReadAllText(Path, Encoding.UTF8).ReplaceLineEndings("\n") : "";
+            var lines = _held.Split('\n');
+            // The text's last line end leaves an empty last part, which is no line of the file.
+            var count = lines.Length > 0 && lines[^1].Length == 0 ? lines.Length - 1 : lines.Length;
+            for (var i = 0; i < count; i++)
             {
-                _kept.Add(lines[i]);
-                continue;
+                var line = CommandLine.Parse(lines[i]);
+                if (registry.FindSetting(line.Name) is not { } setting)
+                    _kept.Add((i + 1, lines[i]));
+                else if (Apply(setting, line, i + 1) is { } trouble)
+                    refused.Add(trouble);
             }
 
-            var answer = line.Rest.Length == 0
-                ? Answer.Fail(Answer.BadArgument, $"{setting.Name} has no value.")
-                : setting.TryStart(line.Words.Count == 1 ? line.Words[0] : line.Rest);
-            if (!answer.Done) refused.Add($"{System.IO.Path.GetFileName(Path)} line {i + 1} is refused. {answer.Text}");
+            return refused;
         }
-
-        return refused;
     }
 
     /// <summary>
@@ -92,15 +109,18 @@ public sealed class SettingsFile
     /// <param name="registry">The registry whose settings are kept.</param>
     public bool Write(Registry registry)
     {
-        var text = Text(registry);
-        if (text == _held) return false;
-        if (System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path)) is { Length: > 0 } folder)
-            Directory.CreateDirectory(folder);
-        var beside = Path + ".tmp";
-        File.WriteAllText(beside, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        File.Move(beside, Path, overwrite: true);
-        _held = text;
-        return true;
+        lock (_gate)
+        {
+            var text = Text(registry);
+            if (text == _held) return false;
+            if (System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path)) is { Length: > 0 } folder)
+                Directory.CreateDirectory(folder);
+            var beside = Path + ".tmp";
+            File.WriteAllText(beside, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.Move(beside, Path, overwrite: true);
+            _held = text;
+            return true;
+        }
     }
 
     /// <summary>The text <see cref="Write"/> writes for a registry's settings.</summary>
@@ -108,15 +128,56 @@ public sealed class SettingsFile
     public string Text(Registry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
-        var text = new StringBuilder();
-        foreach (var setting in registry.Settings)
-            if (setting.Saved && setting.StoredText != setting.DefaultText)
-                text.Append(setting.Name).Append(' ').Append(CommandLine.Quote(setting.StoredText)).Append('\n');
+        lock (_gate)
+        {
+            var text = new StringBuilder();
+            foreach (var setting in registry.Settings)
+                if (setting.Saved && !setting.ReadOnly && setting.SavedText != setting.DefaultText)
+                    text.Append(setting.Name).Append(' ').Append(CommandLine.Quote(setting.SavedText)).Append('\n');
 
-        // A kept line whose name a setting has taken since the read gives way to the setting.
-        foreach (var line in _kept)
-            if (registry.FindSetting(CommandLine.Parse(line).Name) is null)
-                text.Append(line).Append('\n');
-        return text.ToString();
+            // A kept line whose name a setting has taken since the read gives way to the setting.
+            foreach (var (_, line) in _kept)
+                if (registry.FindSetting(CommandLine.Parse(line).Name) is null)
+                    text.Append(line).Append('\n');
+            return text.ToString();
+        }
+    }
+
+    // A setting added after the read takes the line the file holds for it, as a start does, and
+    // from then on a set of it writes the file.
+    private void Added(Setting setting)
+    {
+        lock (_gate)
+        {
+            var at = _kept.FindIndex(kept => CommandLine.Parse(kept.Text).Name == setting.Name);
+            if (at >= 0)
+            {
+                var (number, text) = _kept[at];
+                _kept.RemoveAt(at);
+                if (Apply(setting, CommandLine.Parse(text), number) is { } refused) Trouble?.Invoke(refused);
+            }
+        }
+
+        setting.Changed += Written;
+    }
+
+    private void Written(Setting setting)
+    {
+        try
+        {
+            if (_registry is { } registry) Write(registry);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            Trouble?.Invoke($"{System.IO.Path.GetFileName(Path)} is not written. {error.Message}");
+        }
+    }
+
+    private string? Apply(Setting setting, CommandLine line, int number)
+    {
+        var answer = line.Rest.Length == 0
+            ? Answer.Fail(Answer.BadArgument, $"{setting.Name} has no value.")
+            : setting.TryStart(line.Words.Count == 1 ? line.Words[0] : line.Rest);
+        return answer.Done ? null : $"{System.IO.Path.GetFileName(Path)} line {number} is refused. {answer.Text}";
     }
 }

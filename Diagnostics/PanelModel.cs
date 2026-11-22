@@ -49,7 +49,10 @@ public enum PanelRowKind
 /// <param name="Overridden">
 /// Whether the environment holds the running value, the one shown being kept for the file.
 /// </param>
-public sealed record PanelRow(PanelRowKind Kind, string Label, string Value, bool Selected, bool Pending, bool Overridden);
+/// <param name="ReadOnly">
+/// Whether the setting only reads, so the row shows its value and no input changes it.
+/// </param>
+public sealed record PanelRow(PanelRowKind Kind, string Label, string Value, bool Selected, bool Pending, bool Overridden, bool ReadOnly = false);
 
 /// <summary>A page of the settings panel, a title and the rows a host gives it.</summary>
 /// <param name="title">The page's title.</param>
@@ -164,7 +167,7 @@ public sealed class PanelModel
             var entries = Entries();
             var selected = Selected;
             return entries.Select((entry, i) => entry.Target is Setting setting
-                ? new PanelRow(entry.Kind, entry.Label, setting.StoredText, i == selected, setting.PendingText is not null, setting.Overridden)
+                ? new PanelRow(entry.Kind, entry.Label, setting.StoredText, i == selected, setting.PendingText is not null, setting.Overridden, setting.ReadOnly)
                 : new PanelRow(entry.Kind, entry.Label, "", i == selected, false, false)).ToList();
         }
     }

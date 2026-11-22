@@ -27,6 +27,12 @@ public sealed record Answer(string Text, string? Code = null, Exception? Error =
     /// <summary>The code of a number outside a setting's range.</summary>
     public const string OutOfRange = "OUT_OF_RANGE";
 
+    /// <summary>The code of a set of a setting that only reads.</summary>
+    public const string NotSettable = "NOT_SETTABLE";
+
+    /// <summary>The code of a value the host's setter refused, with the setter's reason.</summary>
+    public const string Refused = "REFUSED";
+
     /// <summary>The code of a command whose run threw.</summary>
     public const string Failed = "FAILED";
 

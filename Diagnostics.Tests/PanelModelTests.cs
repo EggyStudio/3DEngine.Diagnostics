@@ -157,4 +157,33 @@ public class PanelModelTests
         Press(panel, PanelInput.Up, PanelInput.Down, PanelInput.Left, PanelInput.Right, PanelInput.Accept, PanelInput.Back);
         Assert.False(panel.Open);
     }
+
+    [Fact]
+    public void A_Row_That_Only_Reads_Says_So_And_A_Refused_Value_Leaves_The_Row_Where_It_Was()
+    {
+        var registry = new Registry();
+        registry.Add(new Setting<string>("build.version", "The version.", "dev", () => "1.4") { ReadOnly = true });
+        registry.Add(new Setting<bool>("build.debug", "Whether it is a debug build.", false, () => true) { ReadOnly = true });
+        registry.Add(new Setting<int>("build.limit", "The limit.", 6, apply: value => value > 6 ? "No more than 6 fit." : null) { Low = 1, High = 9 });
+        var panel = new PanelModel(registry);
+        Press(panel, PanelInput.Accept);
+        Assert.Equal(
+            [
+                new PanelRow(PanelRowKind.Setting, "debug", "on", true, false, false, ReadOnly: true),
+                new PanelRow(PanelRowKind.Setting, "limit", "6", false, false, false),
+                new PanelRow(PanelRowKind.Setting, "version", "1.4", false, false, false, ReadOnly: true),
+            ],
+            panel.Rows);
+
+        Press(panel, PanelInput.Right);
+        Assert.Equal(Answer.NotSettable, panel.Answer?.Code);
+        Press(panel, PanelInput.Accept);
+        Assert.Equal((Answer.NotSettable, "on"), (panel.Answer?.Code, panel.Rows[0].Value));
+
+        // The step to 7 is refused by the setter, and the row keeps 6.
+        Press(panel, PanelInput.Down, PanelInput.Right);
+        Assert.Equal(("6", "No more than 6 fit.", Answer.Refused), (panel.Rows[1].Value, panel.Answer?.Text, panel.Answer?.Code));
+        Press(panel, PanelInput.Left);
+        Assert.Equal("5", panel.Rows[1].Value);
+    }
 }

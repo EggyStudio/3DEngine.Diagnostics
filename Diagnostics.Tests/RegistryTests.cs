@@ -199,4 +199,16 @@ public class RegistryTests
         })));
         Assert.Equal(1600, registry.Starting("t").Count);
     }
+
+    [Fact]
+    public void An_Event_Is_Raised_As_A_Setting_Is_Added_And_Not_As_A_Command_Is()
+    {
+        var registry = new Registry();
+        var seen = new List<(string Name, bool Found)>();
+        registry.SettingAdded += setting => seen.Add((setting.Name, registry.FindSetting(setting.Name) == setting));
+        registry.Add(Echo("game.quit"));
+        registry.Add(new Setting<bool>("render.vsync", "Whether a frame waits for the display.", true));
+        Assert.Throws<ArgumentException>(() => registry.Add(new Setting<bool>("render.vsync", "Again.", true)));
+        Assert.Equal([("render.vsync", true)], seen);
+    }
 }

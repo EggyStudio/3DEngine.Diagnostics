@@ -30,7 +30,7 @@ context. The overlay is drawn by the host from its model, with whatever text the
 | `CommandLine` | A line as a console takes it, its name, the rest as typed, the rest as one text with one pair of quotes around it taken off, and its words, split at blanks with a quoted word kept whole |
 | `Answer` | What a line answers, its text and, where it failed, a code in capitals a script reads, and the exception of a command that threw, which a host logs and shows no player |
 | `CommandAttribute` | The mark a host's generator reads on a static method to add it as a command |
-| `Setting` and `Setting<T>` | A setting of a bool, an int, a float, a double, an enum or a string, its default, its range or choices, the host's getter and setter, whether it takes effect at the next start, and the environment variable that overrides it |
+| `Setting` and `Setting<T>` | A setting of a bool, an int, a uint, a ulong, a float, a double, an enum or a string, its default, its range or choices, the host's getter and setter or a setter that refuses a value with a reason, whether it only reads, whether it takes effect at the next start, and the environment variable that overrides it |
 | `SettingKind` | Whether a setting is a toggle, a whole number, a number, a choice or text |
 | `ConsoleModel` | A console's content with no drawing, a plain list of every line written, the line being entered with the candidates its start leaves, their selection and the ghost text, a line in and lines out, an event for each line kept and one for each line run with its answer, the history and a hint |
 | `ConsoleLine` and `ConsoleLevel` | A line a console shows, whether it was entered, plain, a warning or an error, which a drawer colors it by, how many times a host wrote it in a row, its number in the stream and the host's stamp |
@@ -38,7 +38,7 @@ context. The overlay is drawn by the host from its model, with whatever text the
 | `PanelModel`, `PanelPage`, `PanelRow`, `PanelRowKind` and `PanelInput` | The settings panel's content with no drawing, a page for each first word of the settings' names and a host's own pages of settings, actions and text, steered by up, down, left, right, accept and back, and an event for each answer it gets |
 | `DiagnosticKeys` and `KeyAction` | The five keys as text settings a player rebinds, F1 hiding the interface, F2 asking for a screenshot, F3 the overlay, F4 the panel and F5 the console, each taken on its key's release and never by a chord, and disposed to take the settings out |
 | `ImGuiConsole` and `ImGuiPanel` | In `3DEngine.Diagnostics.ImGui`, the console and the settings panel drawn with Dear ImGui in a host's frame, the console's field with history, completion and a hint, the panel steered by ImGui's arrows, Enter, Escape and a pad |
-| `SettingsFile` | The settings kept across runs in one text file of name and value lines, only the values that differ from their defaults, with unknown names kept |
+| `SettingsFile` | The settings kept across runs in one text file of name and value lines, only the values a player set that differ from their defaults, with unknown names kept, a line taken by a setting added after the start and written when that setting is set |
 
 ## Taking it into an engine
 
@@ -157,9 +157,18 @@ It stands on these conventions.
   whatever its case, and a text in double quotes where it holds a blank.
 - A setting with `AtNextStart` keeps the set value for the file and its running value until the
   program starts again, and `SettingsFile.Read` gives it the file's value as the running one.
+- A setting with `ReadOnly` shows its value and answers a set as `Answer.NotSettable`, and is never
+  saved, never overridden by an environment variable and never pending a next start. A setting
+  whose setter returns a reason answers `Answer.Refused` with it, and its value and the panel's row
+  stay where they were. A number refuses infinities as it does NaN, and a `uint` or `ulong` is
+  checked against its type's range, so its sentence reads `0 to` the type's largest.
 - A setting's environment variable, where it is set to a value the setting takes, gives the running
   value for the whole run. A set is then kept for the file alone, and `Setting.Overridden`, the
   setting's sentence and `list` say so.
+- The settings file keeps what a player set, through the console, the panel or the file, and not a
+  value the program wrote through its getter. A setting added after `SettingsFile.Read` takes its
+  line then, through `Registry.SettingAdded`, and the file is written when it is set. A write that
+  fails is told through `SettingsFile.Trouble`.
 - `SettingsFile.For` names a game's file, `settings.txt` in a folder of the game's name under the
   system's folder of applications' data, and a host with a folder of its own gives any path.
 

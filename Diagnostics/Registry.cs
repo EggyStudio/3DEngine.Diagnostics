@@ -81,7 +81,21 @@ public sealed class Registry
     /// <exception cref="ArgumentException">
     /// The name is no name, or a command or a setting has it.
     /// </exception>
-    public void Add(Setting setting) => Add((setting ?? throw new ArgumentNullException(nameof(setting))).Name, setting);
+    public void Add(Setting setting)
+    {
+        Add((setting ?? throw new ArgumentNullException(nameof(setting))).Name, setting);
+        SettingAdded?.Invoke(setting);
+    }
+
+    /// <summary>
+    /// Raised after a setting is added, on the thread that added it and outside the registry's
+    /// lock, so a handler finds the setting by its name and may add or remove others.
+    /// </summary>
+    /// <remarks>
+    /// A settings file listens to it, to give a setting added after the start the value its file
+    /// holds. A command added raises nothing.
+    /// </remarks>
+    public event Action<Setting>? SettingAdded;
 
     /// <summary>Takes a command or a setting out, and says whether there was one.</summary>
     /// <param name="name">Its name.</param>
@@ -173,7 +187,7 @@ public sealed class Registry
             case Setting setting:
                 var said = new StringBuilder(setting.Describe()).Append('\n').Append(setting.Summary);
                 if (setting.Takes.Length > 0) said.Append($"\nIt takes {setting.Takes}.");
-                if (setting.AtNextStart) said.Append("\nA set takes effect at the next start.");
+                if (setting.AtNextStart && !setting.ReadOnly) said.Append("\nA set takes effect at the next start.");
                 if (setting.EnvironmentRefusal is { } refusal) said.Append('\n').Append(refusal);
                 return new Answer(said.ToString());
             default:

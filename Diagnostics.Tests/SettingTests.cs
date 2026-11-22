@@ -165,4 +165,121 @@ public class SettingTests
     {
         Assert.Throws<NotSupportedException>(() => new Setting<DateTime>("clock.start", "When the clock starts.", default));
     }
+
+    [Fact]
+    public void A_Setting_That_Only_Reads_Is_Shown_With_Its_Value_And_Answers_A_Set_As_Not_Settable()
+    {
+        var registry = new Registry();
+        var version = "1.4";
+        var build = new Setting<string>("build.version", "The version the program was built as.", "dev", () => version)
+        {
+            ReadOnly = true,
+            AtNextStart = true,
+        };
+        registry.Add(build);
+
+        Assert.True(build.ReadOnly);
+        Assert.Equal("build.version is 1.4, dev by default.", registry.Run("build.version").Text);
+        Assert.Equal("1.4", build.StoredText);
+        Assert.Null(build.PendingText);
+        Assert.DoesNotContain("next start", registry.Run("help build.version").Text);
+        Assert.Equal("build.version 1.4", registry.Run("list build").Text);
+
+        var set = registry.Run("build.version 2.0");
+        Assert.Equal((Answer.NotSettable, "build.version is read only."), (set.Code, set.Text));
+        Assert.Equal(Answer.NotSettable, registry.Run("reset build.version").Code);
+        Assert.Equal(Answer.NotSettable, build.TrySet("2.0").Code);
+        Assert.Equal(Answer.NotSettable, build.TryStart("2.0").Code);
+        Assert.Equal(Answer.NotSettable, build.Move(1).Code);
+        Assert.Equal("1.4", build.Value);
+
+        // The getter reads the program's own change, and no file keeps it.
+        version = "1.5";
+        Assert.Equal("1.5", build.Text);
+    }
+
+    [Fact]
+    public void A_Setter_That_Refuses_Gives_Its_Reason_And_Leaves_The_Value_Where_It_Was()
+    {
+        var device = 32;
+        var voices = new Setting<int>("sound.voices", "How many sounds play at once.", 32, () => device,
+            apply: value =>
+            {
+                if (value == 13) return "The sound device has no 13 voices.";
+                device = value;
+                return null;
+            });
+        var registry = new Registry();
+        registry.Add(voices);
+        var raised = 0;
+        voices.Changed += _ => raised++;
+
+        var refused = registry.Run("sound.voices 13");
+        Assert.Equal((Answer.Refused, "The sound device has no 13 voices."), (refused.Code, refused.Text));
+        Assert.Equal((32, "32", "32", 0), (device, voices.Text, voices.StoredText, raised));
+
+        Assert.True(registry.Run("sound.voices 16").Done);
+        Assert.Equal((16, "16", 1), (device, voices.StoredText, raised));
+
+        // A setting that holds its own value keeps it only where the setter took it.
+        var held = new Setting<int>("sound.rate", "The rate.", 48, apply: value => value > 96 ? "Too fast." : null);
+        Assert.Equal("Too fast.", held.TrySet(100).Text);
+        Assert.Equal(48, held.Value);
+        Assert.True(held.TrySet(44).Done);
+        Assert.Equal(44, held.Value);
+
+        Assert.Throws<ArgumentException>(() => new Setting<int>("sound.x", "x.", 1, set: _ => { }, apply: _ => null));
+    }
+
+    [Fact]
+    public void A_Whole_Number_Without_A_Sign_Of_Four_Or_Eight_Bytes_Is_Range_Checked()
+    {
+        var seed = new Setting<uint>("debug.seed", "The run's seed.", 7);
+        Assert.Equal((SettingKind.Whole, "0 to 4294967295"), (seed.Kind, seed.Takes));
+        Assert.True(seed.TrySet("4294967295").Done);
+        Assert.Equal(uint.MaxValue, seed.Value);
+        var below = seed.TrySet("-1");
+        Assert.Equal((Answer.OutOfRange, "debug.seed takes 0 to 4294967295, not -1."), (below.Code, below.Text));
+        Assert.Equal(Answer.OutOfRange, seed.TrySet("4294967296").Code);
+        Assert.Equal(Answer.BadArgument, seed.TrySet("1.5").Code);
+        Assert.Equal(uint.MaxValue, seed.Value);
+        Assert.True(seed.TrySet(0u).Done);
+        Assert.Equal("0", seed.Move(-1).Done ? seed.StoredText : "");
+
+        var ranged = new Setting<uint>("debug.count", "How many.", 4) { Low = 2, High = 9 };
+        Assert.Equal("2 to 9", ranged.Takes);
+        Assert.Equal(Answer.OutOfRange, ranged.TrySet("1").Code);
+        Assert.Equal(Answer.OutOfRange, ranged.TrySet(10u).Code);
+        Assert.True(ranged.TrySet("9").Done);
+
+        // Eight bytes are held exactly, where a double would round the last digits away.
+        var token = new Setting<ulong>("debug.token", "The run's token.", 0);
+        Assert.True(token.TrySet("18446744073709551615").Done);
+        Assert.Equal(ulong.MaxValue, token.Value);
+        Assert.Equal("18446744073709551615", token.Text);
+        Assert.Equal(Answer.OutOfRange, token.TrySet("18446744073709551616").Code);
+        Assert.Equal(Answer.OutOfRange, token.TrySet("-1").Code);
+        Assert.True(token.TrySet("9007199254740993").Done);
+        Assert.Equal(9007199254740993UL, token.Value);
+        Assert.True(token.Move(1).Done);
+        Assert.Equal("9007199254740994", token.StoredText);
+    }
+
+    [Fact]
+    public void A_Number_Refuses_Both_Infinities_Beside_Nan_With_Or_Without_A_High()
+    {
+        var open = new Setting<float>("render.gain", "The gain.", 1);
+        var closed = new Setting<double>("render.bias", "The bias.", 1) { Low = -10, High = 10 };
+        foreach (var text in new[] { "Infinity", "-Infinity", "NaN", "1e50" })
+        {
+            Assert.Equal(Answer.OutOfRange, open.TrySet(text).Code);
+            Assert.Equal(Answer.OutOfRange, closed.TrySet(text).Code);
+        }
+
+        Assert.Equal("render.gain takes a number, not Infinity.", open.TrySet(float.PositiveInfinity).Text);
+        Assert.Equal(Answer.OutOfRange, open.TrySet(float.NegativeInfinity).Code);
+        Assert.Equal(Answer.OutOfRange, closed.TrySet(double.PositiveInfinity).Code);
+        Assert.Equal((1f, 1.0), (open.Value, closed.Value));
+        Assert.True(open.TrySet("1e30").Done);
+    }
 }
