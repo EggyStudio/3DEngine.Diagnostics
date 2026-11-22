@@ -55,6 +55,14 @@ documents, the skeleton, the design, the code, then the engines taking it.
     models, then the ImGui part, each its own commit with a picture where there is something to see
     (N 4.8 to N 4.10).
 
+5. **The drawn console and panel take the overlay's neutral look, one commit.** Light gray text
+   (224, 224, 224) on black at half alpha, the entered line's echo and the ghost text a dimmer gray,
+   the popup's chosen row, the scrollbar and the borders in neutral grays, and nothing read from the
+   host's ImGui theme, the palette pushed around the two drawings and popped after. Warning and
+   error lines keep their hue. A CPU-drawn fact holds that the console carries no blue cast outside
+   those rows. The pictures are retaken on a white sheet with a title, the console with a warning,
+   an error and the popup open, and the panel.
+
 ## Verdicts
 
 None yet.

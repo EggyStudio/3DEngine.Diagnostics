@@ -243,15 +243,73 @@ public sealed class ImGuiDrawingTests
             for (var i = 0; i < times; i++) console.Write(ConsoleLevel.Warning, "The shader cache is cold.");
             frames.Frame(Draw);
             frames.Frame(Draw);
+            // The text is lighter than the window it stands on.
+            var ground = frames.Picture[(20 * 960 + 940) * 4 + 2];
             for (var x = 900; x > 0; x--)
                 for (var y = 8; y < 28; y++)
-                    if (frames.Picture[(y * 960 + x) * 4 + 2] < 200) return x;
+                    if (Math.Abs(frames.Picture[(y * 960 + x) * 4 + 2] - ground) > 40) return x;
             return 0;
         }
 
         var (once, twice, again) = (Right(1), Right(2), Right(1));
         Assert.Equal(once, again);
         Assert.True(twice > once + 10, $"{once} for one writing, {twice} for two");
+    }
+
+    // How far a pixel's channels part, which is nothing in a gray.
+    private static int Hue(byte[] picture, int pixel) =>
+        Math.Max(picture[pixel * 4], Math.Max(picture[pixel * 4 + 1], picture[pixel * 4 + 2]))
+        - Math.Min(picture[pixel * 4], Math.Min(picture[pixel * 4 + 1], picture[pixel * 4 + 2]));
+
+    [Fact]
+    public void The_Console_And_The_Panel_Carry_No_Hue_Of_The_Hosts_Theme_And_Failures_Keep_Theirs()
+    {
+        var registry = Make();
+        var console = new ConsoleModel(registry) { Open = true };
+        var panel = new PanelModel(registry);
+        var (drawnConsole, drawnPanel) = (new ImGuiConsole(console) { Height = 0.5f }, new ImGuiPanel(panel));
+        using var frames = new ImGuiFrames(960, 540);
+
+        // A host theme that is blue everywhere a console could take a color from.
+        var colors = ImGui.GetStyle().Colors;
+        for (var i = 0; i < (int)ImGuiCol.COUNT; i++) colors[i] = new(0.1f, 0.3f, 0.9f, 1f);
+        var before = Enumerable.Range(0, (int)ImGuiCol.COUNT).Select(i => ImGui.GetStyle().Colors[i]).ToArray();
+        var kept = true;
+        void Draw()
+        {
+            drawnConsole.Draw(frames.Size);
+            drawnPanel.Draw(frames.Size);
+            // The host's own windows keep its theme, the palette being popped after the drawing.
+            kept &= Enumerable.Range(0, (int)ImGuiCol.COUNT).All(i => ImGui.GetStyle().Colors[i] == before[i]);
+        }
+
+        console.Submit("help render.scale");
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+        frames.Type("re", Draw);
+        frames.Frame(Draw);
+        Assert.True(console.PopupShown);
+
+        Assert.Equal(0, Enumerable.Range(0, 960 * 540).Count(i => Hue(frames.Picture, i) > 4));
+        Assert.True(kept);
+
+        // The panel, steered to a row, has none either.
+        (console.Open, panel.Open) = (false, true);
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+        frames.Tap(ImGuiKey.Enter, Draw);
+        Assert.True(frames.Drawn() > 3000);
+        Assert.Equal(0, Enumerable.Range(0, 960 * 540).Count(i => Hue(frames.Picture, i) > 4));
+        (console.Open, panel.Open) = (true, false);
+
+        // A warning and an error line are the lines that stand out by their hue.
+        console.Write(ConsoleLevel.Warning, "The shader cache is cold.");
+        console.Write(ConsoleLevel.Error, "The device was lost.");
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+        var failures = Enumerable.Range(0, 960 * 540).Count(i => Hue(frames.Picture, i) > 60);
+        Assert.True(failures > 40, $"{failures} pixels of a hue");
+        Assert.True(kept);
     }
 
     [Fact]

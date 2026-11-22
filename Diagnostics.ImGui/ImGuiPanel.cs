@@ -11,7 +11,8 @@ namespace Diagnostics;
 /// directions, lower face button and right face button from ImGui's own keys, repeating a held
 /// direction, so a host that feeds ImGui its input feeds the panel, a pad's where its backend sets
 /// <c>ImGuiBackendFlags.HasGamepad</c>. The window is sized to its rows, which ImGui measures in
-/// the first frame and draws from the second. It sets no style and no font.
+/// the first frame and draws from the second. It draws in the neutral look of the console, its
+/// palette pushed around the window and popped after, and takes no color from the host's theme.
 /// <see cref="Draw"/> is called on the host's thread between the host's <c>NewFrame</c> and
 /// <c>Render</c>.
 /// </remarks>
@@ -58,6 +59,7 @@ public sealed class ImGuiPanel(PanelModel model)
         var rows = _model.Rows;
         ImGui.SetNextWindowPos(window / 2, ImGuiCond.Always, new Vector2(0.5f, 0.5f));
         ImGui.SetNextWindowSize(new Vector2(MathF.Min(Width, window.X), 0f), ImGuiCond.Always);
+        using var look = NeutralLook.Push();
         if (ImGui.Begin("Panel##diagnostics", Window))
         {
             ImGui.TextUnformatted(_model.Title);
@@ -100,7 +102,7 @@ public sealed class ImGuiPanel(PanelModel model)
             ImGui.GetWindowDrawList().AddRectFilled(
                 from - new Vector2(4f, 1f),
                 from + new Vector2(width + 4f, ImGui.GetTextLineHeight() + 1f),
-                ImGui.GetColorU32(ImGuiCol.Header), 3f);
+                NeutralLook.U32(NeutralLook.Chosen));
         ImGui.TextUnformatted(row.Label);
         if (value.Length > 0)
         {

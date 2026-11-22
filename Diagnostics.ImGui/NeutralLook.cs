@@ -1,0 +1,98 @@
+using System.Numerics;
+using ImGuiNET;
+
+namespace Diagnostics;
+
+/// <summary>
+/// The one palette the console and the panel draw with, the look of the debug overlay, light gray
+/// text on black at half alpha with no hue anywhere, pushed around their drawing and popped after,
+/// so a host's own windows keep the host's theme.
+/// </summary>
+/// <remarks>
+/// Nothing the drawers draw reads a color from the host's theme. The colors of the lines that
+/// failed alone have a hue, since a failure should stand out. The values are internal until a host
+/// needs to set them.
+/// </remarks>
+internal static class NeutralLook
+{
+    /// <summary>The text, a light gray.</summary>
+    public static readonly Vector4 Text = Gray(224);
+
+    /// <summary>The echo, the ghost text, the hint and the placeholder, a dim gray.</summary>
+    public static readonly Vector4 Dim = Gray(172);
+
+    /// <summary>A warning line, an amber that stands out on black.</summary>
+    public static readonly Vector4 Warning = new(1.00f, 0.72f, 0.25f, 1f);
+
+    /// <summary>An error line, a red that stands out on black.</summary>
+    public static readonly Vector4 Error = new(1.00f, 0.40f, 0.38f, 1f);
+
+    /// <summary>The window and the field, black at half alpha.</summary>
+    public static readonly Vector4 Ground = new(0f, 0f, 0f, 0.5f);
+
+    /// <summary>
+    /// The popup of candidates, black over the lines it stands on, dense enough to keep them from
+    /// showing through.
+    /// </summary>
+    public static readonly Vector4 Popup = new(0f, 0f, 0f, 0.85f);
+
+    /// <summary>The chosen row, a neutral gray.</summary>
+    public static readonly Vector4 Chosen = Gray(88);
+
+    /// <summary>The borders, a gray.</summary>
+    public static readonly Vector4 Border = new(0.45f, 0.45f, 0.45f, 0.7f);
+
+    private static readonly (ImGuiCol Slot, Vector4 Color)[] Colors =
+    [
+        (ImGuiCol.Text, Text),
+        (ImGuiCol.TextDisabled, Dim),
+        (ImGuiCol.WindowBg, Ground),
+        (ImGuiCol.ChildBg, new(0f, 0f, 0f, 0f)),
+        (ImGuiCol.PopupBg, Popup),
+        (ImGuiCol.Border, Border),
+        (ImGuiCol.BorderShadow, new(0f, 0f, 0f, 0f)),
+        (ImGuiCol.FrameBg, Ground),
+        (ImGuiCol.FrameBgHovered, new(0f, 0f, 0f, 0.6f)),
+        (ImGuiCol.FrameBgActive, new(0f, 0f, 0f, 0.7f)),
+        (ImGuiCol.Header, Chosen),
+        (ImGuiCol.HeaderHovered, Chosen),
+        (ImGuiCol.HeaderActive, Chosen),
+        (ImGuiCol.ScrollbarBg, new(0f, 0f, 0f, 0.3f)),
+        (ImGuiCol.ScrollbarGrab, Gray(110, 0.8f)),
+        (ImGuiCol.ScrollbarGrabHovered, Gray(150, 0.9f)),
+        (ImGuiCol.ScrollbarGrabActive, Gray(180)),
+        (ImGuiCol.Separator, Border),
+        (ImGuiCol.TextSelectedBg, Gray(128, 0.45f)),
+        (ImGuiCol.NavCursor, new(0f, 0f, 0f, 0f)),
+    ];
+
+    /// <summary>Pushes the palette, and gives what pops it.</summary>
+    public static Pushed Push()
+    {
+        foreach (var (slot, color) in Colors) ImGui.PushStyleColor(slot, color);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 0f);
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 0f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 0f);
+        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 0f);
+        return new Pushed();
+    }
+
+    /// <summary>A color as a drawing list takes it.</summary>
+    /// <param name="color">The color.</param>
+    public static uint U32(Vector4 color) => ImGui.ColorConvertFloat4ToU32(color);
+
+    private static Vector4 Gray(int level, float alpha = 1f) => new(level / 255f, level / 255f, level / 255f, alpha);
+
+    /// <summary>What pops the palette a push made.</summary>
+    public readonly struct Pushed : IDisposable
+    {
+        /// <summary>Pops the colors and the style values pushed.</summary>
+        public void Dispose()
+        {
+            ImGui.PopStyleVar(6);
+            ImGui.PopStyleColor(Colors.Length);
+        }
+    }
+}

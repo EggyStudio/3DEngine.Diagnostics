@@ -200,8 +200,11 @@ if (panel.Open && host.Pressed("Down")) panel.Press(PanelInput.Down);
 ### Drawing with ImGui
 
 A host that draws with Dear ImGui references the second project and makes the two drawers once.
-Each draws nothing while its model is closed, sets no style and no font, and is called between the
-host's `NewFrame` and `Render` with the window's size in ImGui's units.
+Each draws nothing while its model is closed and is called between the host's `NewFrame` and
+`Render` with the window's size in ImGui's units. They draw in the look of the debug overlay, light
+gray text on black at half alpha with no hue, in one palette of their own that they push around
+their drawing and pop after, so they take nothing of the host's theme and the host's own windows
+keep it. A warning line and an error line keep their hue. The font is the host's.
 
 ```csharp
 var drawnConsole = new ImGuiConsole(console);

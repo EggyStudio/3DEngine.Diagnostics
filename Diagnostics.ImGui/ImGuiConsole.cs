@@ -16,7 +16,9 @@ namespace Diagnostics;
 /// </para>
 /// <para>
 /// The box and the ghost are drawn on ImGui's foreground list, so they stand over the console
-/// whichever window has the focus. The console sets no style and no font, which are the host's.
+/// whichever window has the focus. The console draws in the neutral look of the debug overlay,
+/// light gray text on black at half alpha, in one palette of its own pushed around its drawing and
+/// popped after, and takes no color from the host's theme. The font is the host's.
 /// <see cref="Draw"/> is called on the host's thread between the host's <c>NewFrame</c> and
 /// <c>Render</c>.
 /// </para>
@@ -61,6 +63,7 @@ public sealed class ImGuiConsole(ConsoleModel model)
 
         ImGui.SetNextWindowPos(Vector2.Zero, ImGuiCond.Always);
         ImGui.SetNextWindowSize(new Vector2(window.X, MathF.Round(window.Y * Math.Clamp(Height, 0.1f, 1f))), ImGuiCond.Always);
+        using var look = NeutralLook.Push();
         if (ImGui.Begin("Console##diagnostics", Window))
         {
             // The hint's row is the window's only where there is a hint, so a console with none
@@ -139,7 +142,7 @@ public sealed class ImGuiConsole(ConsoleModel model)
         var style = ImGui.GetStyle();
         var at = new Vector2(min.X + style.FramePadding.X + ImGui.CalcTextSize(_model.Typed).X, min.Y + style.FramePadding.Y);
         if (at.X + ImGui.CalcTextSize(ghost).X <= max.X - style.FramePadding.X)
-            list.AddText(at, ImGui.GetColorU32(ImGuiCol.TextDisabled), ghost);
+            list.AddText(at, NeutralLook.U32(NeutralLook.Dim), ghost);
     }
 
     // The candidates in a box above the field, as wide as the field, the selected row banded in
@@ -153,15 +156,15 @@ public sealed class ImGuiConsole(ConsoleModel model)
         var height = rows * rowHeight + style.WindowPadding.Y;
         var box = (From: new Vector2(min.X, min.Y - height - 2f), To: new Vector2(max.X, min.Y - 2f));
 
-        list.AddRectFilled(box.From, box.To, ImGui.GetColorU32(ImGuiCol.PopupBg), 3f);
-        list.AddRect(box.From, box.To, ImGui.GetColorU32(ImGuiCol.Border), 3f);
+        list.AddRectFilled(box.From, box.To, NeutralLook.U32(NeutralLook.Popup));
+        list.AddRect(box.From, box.To, NeutralLook.U32(NeutralLook.Border));
         for (var row = 0; row < rows; row++)
         {
             var index = _model.FirstVisible + row;
             var top = box.From.Y + style.WindowPadding.Y / 2 + row * rowHeight;
             if (index == _model.SelectedIndex)
-                list.AddRectFilled(new Vector2(box.From.X + 2f, top), new Vector2(box.To.X - 2f, top + rowHeight), ImGui.GetColorU32(ImGuiCol.Header), 2f);
-            list.AddText(new Vector2(box.From.X + style.WindowPadding.X, top + style.ItemSpacing.Y / 2), ImGui.GetColorU32(ImGuiCol.Text), candidates[index]);
+                list.AddRectFilled(new Vector2(box.From.X + 2f, top), new Vector2(box.To.X - 2f, top + rowHeight), NeutralLook.U32(NeutralLook.Chosen));
+            list.AddText(new Vector2(box.From.X + style.WindowPadding.X, top + style.ItemSpacing.Y / 2), NeutralLook.U32(NeutralLook.Text), candidates[index]);
         }
     }
 
@@ -199,9 +202,9 @@ public sealed class ImGuiConsole(ConsoleModel model)
     // a plain line the style's.
     private static Vector4? ColorOf(ConsoleLevel level) => level switch
     {
-        ConsoleLevel.Input => ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled],
-        ConsoleLevel.Warning => new Vector4(0.80f, 0.52f, 0.05f, 1f),
-        ConsoleLevel.Error => new Vector4(0.85f, 0.20f, 0.18f, 1f),
+        ConsoleLevel.Input => NeutralLook.Dim,
+        ConsoleLevel.Warning => NeutralLook.Warning,
+        ConsoleLevel.Error => NeutralLook.Error,
         _ => null,
     };
 }
