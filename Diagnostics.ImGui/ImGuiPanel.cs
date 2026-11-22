@@ -88,7 +88,8 @@ public sealed class ImGuiPanel(PanelModel model)
         var value = row.Kind switch
         {
             PanelRowKind.Page => ">",
-            PanelRowKind.Setting => row.Selected ? $"< {row.Value} >" : row.Value,
+            // A row that only reads has nothing to step, so it carries no marks where selected.
+            PanelRowKind.Setting => row.Selected && !row.ReadOnly ? $"< {row.Value} >" : row.Value,
             _ => "",
         };
         if (row.Pending) value += "  at the next start";

@@ -10,6 +10,8 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 
 Commits that day
 
+- `4f3cf53` Settings can only read, refuse a value, be unsigned, and keep a player's values in the
+  file.
 - `d48d664` The field takes the popup's black with it, and the README opens on the two captures.
 - `96346c2` The popup of candidates joins the input field, its lower edge on the field's upper edge
   with no gap, the same left and right edges, its text starting where the typed text does and one

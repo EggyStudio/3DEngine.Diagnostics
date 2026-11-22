@@ -256,6 +256,30 @@ public sealed class ImGuiDrawingTests
         Assert.True(twice > once + 10, $"{once} for one writing, {twice} for two");
     }
 
+    [Fact]
+    public void A_Selected_Row_That_Only_Reads_Carries_No_Marks_Round_Its_Value()
+    {
+        // The vertices of the panel's page with the one setting selected, where the two marks
+        // round its value add glyphs to the frame where there are any.
+        int Drawn(bool readOnly)
+        {
+            var registry = new Registry();
+            registry.Add(new Setting<string>("build.mode", "The mode.", "dev") { ReadOnly = readOnly });
+            var panel = new PanelModel(registry) { Open = true };
+            var drawn = new ImGuiPanel(panel);
+            using var frames = new ImGuiFrames(960, 540);
+            void Draw() => drawn.Draw(frames.Size);
+            frames.Frame(Draw);
+            frames.Tap(ImGuiKey.Enter, Draw);
+            frames.Frame(Draw);
+            Assert.True(panel.Rows[0].Selected);
+            return frames.Vertices;
+        }
+
+        var (reads, steps) = (Drawn(true), Drawn(false));
+        Assert.True(reads < steps, $"{reads} vertices where it reads, {steps} where it steps");
+    }
+
     // How far a pixel's channels part, which is nothing in a gray.
     private static int Hue(byte[] picture, int pixel) =>
         Math.Max(picture[pixel * 4], Math.Max(picture[pixel * 4 + 1], picture[pixel * 4 + 2]))
