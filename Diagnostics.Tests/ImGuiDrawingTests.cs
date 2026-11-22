@@ -313,6 +313,40 @@ public sealed class ImGuiDrawingTests
     }
 
     [Fact]
+    public void The_Popup_Joins_The_Field_With_No_Row_Of_Window_Ground_Between_And_Equal_Edges()
+    {
+        var registry = Make();
+        var console = new ConsoleModel(registry) { Open = true };
+        var drawn = new ImGuiConsole(console) { Height = 0.5f };
+        using var frames = new ImGuiFrames(960, 540);
+        void Draw() => drawn.Draw(frames.Size);
+        console.Submit("entity.count");
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+        frames.Type("re", Draw);
+        frames.Frame(Draw);
+        Assert.True(console.PopupShown);
+
+        // The window's own ground is the color of its empty part, where no text stands.
+        var picture = frames.Picture;
+        int Red(int x, int y) => picture[(y * 960 + x) * 4];
+        var ground = Red(700, 100);
+        var height = (int)MathF.Round(540 * 0.5f);
+
+        // Down the right of the box, from under the window's border to over its border at the foot,
+        // the rows that are not ground are one run, the popup and the field as one.
+        var rows = Enumerable.Range(4, height - 8).Where(y => Red(700, y) != ground).ToArray();
+        Assert.True(rows.Length > 100, $"{rows.Length} rows");
+        Assert.Equal(rows[^1] - rows[0] + 1, rows.Length);
+
+        // The left and the right edge of a row of the popup and of the field are the same.
+        (int Left, int Right) Edges(int y) => (
+            Enumerable.Range(0, 960).First(x => Red(x, y) != ground && x > 4),
+            Enumerable.Range(0, 960).Last(x => Red(x, y) != ground && x < 955));
+        Assert.Equal(Edges(rows[0] + 6), Edges(rows[^1] - 4));
+    }
+
+    [Fact]
     public void The_Console_Is_Drawn_With_Its_Popup_And_Ghost_For_A_Picture()
     {
         var registry = Make();

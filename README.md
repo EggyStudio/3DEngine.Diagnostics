@@ -222,12 +222,13 @@ foreach (var key in host.KeysPressed) keys.KeyDown(key, typing: drawnConsole.Typ
   default, holding a plain list of every line, colored by the line's level, a line a host wrote
   again in a row once with its count in brackets, the field and the hint under it. Its field takes
   the keyboard as the console opens.
-- The popup of candidates stands above the field once the player edited, as wide as the field, six
-  rows at most with the selected one banded, and the ghost text follows what is typed, dimmed, where
-  the selected candidate begins with the word being typed. Up and down move the selection while the
-  popup shows and walk the history otherwise, Tab fills the selected candidate and Enter runs the
-  line. `ImGuiConsole.Typing` says whether the field has the keyboard, which the host gives
-  `DiagnosticKeys.KeyDown`. The box and the ghost are drawn on ImGui's foreground list, so they
+- The popup of candidates stands on the field once the player edited, its lower edge the field's
+  upper edge and as wide as the field, one border running round the two so they read as one box,
+  its text starting where the typed text does, six rows at most with the selected one banded, and
+  the ghost text follows what is typed, dimmed, where the selected candidate begins with the word
+  being typed. Up and down move the selection while the popup shows and walk the history otherwise,
+  Tab fills the selected candidate and Enter runs the line. `ImGuiConsole.Typing` says whether the
+  field has the keyboard, which the host gives `DiagnosticKeys.KeyDown`. The box and the ghost are drawn on ImGui's foreground list, so they
   stand over the console whichever window has the focus.
 - The candidates are the names of commands and settings that begin with the word and then those
   with a later dotted part that does, so `vsync` offers `render.vsync` and Tab fills it. After a

@@ -61,7 +61,9 @@ documents, the skeleton, the design, the code, then the engines taking it.
    host's ImGui theme, the palette pushed around the two drawings and popped after. Warning and
    error lines keep their hue. A CPU-drawn fact holds that the console carries no blue cast outside
    those rows. The pictures are retaken on a white sheet with a title, the console with a warning,
-   an error and the popup open, and the panel.
+   an error and the popup open, and the panel. The popup of candidates joins the input field, its
+   lower edge on the field's upper edge with no gap, as wide as the field, the candidates' text over
+   the typed text, a fact holding the join.
 
 ## Verdicts
 

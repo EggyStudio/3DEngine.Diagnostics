@@ -10,6 +10,10 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 
 Commits that day
 
+- `7d0dce6` The drawn console and panel take the neutral look of the debug overlay, light gray text
+  on black at half alpha with no hue and one palette of their own pushed around their drawing,
+  warning and error lines keeping theirs, and the two pictures are retaken on a white sheet with a
+  title.
 - `6bbc4ce` The panel raises Answered with the name of the setting moved or the line of the action
   run and its answer, so a host logs what was moved and the exception of an action that threw.
 - `4688279` The console raises LineRun with the line as entered and its answer from Submit and
@@ -40,9 +44,10 @@ Commits that day
 The console as the ImGui library draws it with no device in the neutral look of the overlay, light
 gray text on black at half alpha on a host theme that is blue, a plain list of every line with
 entered lines dimmed, a refused set in red and a host's warning in amber shown once with its count
-after a second writing, the popup of six candidates above the field as wide as the field with the
-second selected, the ghost text nder.quality after the typed re, the window cut out on a white sheet
-with a title and no empty strip under the field.
+after a second writing, the popup of six candidates joined to the field, its lower edge on the
+field's upper edge and as wide, with one border round both and its text starting where the typed
+text does, the second selected, the ghost text nder.quality after the typed re, the window cut out
+on a white sheet with a title and no empty strip under the field.
 
 ![](.github/assets/readings/2026-11-21-item-4-panel-page.webp)
 The settings panel in the same neutral look on the page of the settings named render, scale at 1.25

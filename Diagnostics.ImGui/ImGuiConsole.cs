@@ -145,8 +145,9 @@ public sealed class ImGuiConsole(ConsoleModel model)
             list.AddText(at, NeutralLook.U32(NeutralLook.Dim), ghost);
     }
 
-    // The candidates in a box above the field, as wide as the field, the selected row banded in
-    // the style's header color.
+    // The candidates in a box whose lower edge is the field's upper edge and whose sides are the
+    // field's, the selected row banded, their text starting where the typed text does, and one
+    // border running round the box and the field together, so the two read as one.
     private void Popup(ImDrawListPtr list, Vector2 min, Vector2 max)
     {
         var style = ImGui.GetStyle();
@@ -154,18 +155,19 @@ public sealed class ImGuiConsole(ConsoleModel model)
         var rows = Math.Min(ConsoleModel.PopupRows, candidates.Count - _model.FirstVisible);
         var rowHeight = ImGui.GetTextLineHeight() + style.ItemSpacing.Y;
         var height = rows * rowHeight + style.WindowPadding.Y;
-        var box = (From: new Vector2(min.X, min.Y - height - 2f), To: new Vector2(max.X, min.Y - 2f));
+        var box = (From: new Vector2(min.X, min.Y - height), To: new Vector2(max.X, min.Y));
 
         list.AddRectFilled(box.From, box.To, NeutralLook.U32(NeutralLook.Popup));
-        list.AddRect(box.From, box.To, NeutralLook.U32(NeutralLook.Border));
         for (var row = 0; row < rows; row++)
         {
             var index = _model.FirstVisible + row;
             var top = box.From.Y + style.WindowPadding.Y / 2 + row * rowHeight;
             if (index == _model.SelectedIndex)
-                list.AddRectFilled(new Vector2(box.From.X + 2f, top), new Vector2(box.To.X - 2f, top + rowHeight), NeutralLook.U32(NeutralLook.Chosen));
-            list.AddText(new Vector2(box.From.X + style.WindowPadding.X, top + style.ItemSpacing.Y / 2), NeutralLook.U32(NeutralLook.Text), candidates[index]);
+                list.AddRectFilled(new Vector2(box.From.X + 1f, top), new Vector2(box.To.X - 1f, top + rowHeight), NeutralLook.U32(NeutralLook.Chosen));
+            list.AddText(new Vector2(box.From.X + style.FramePadding.X, top + style.ItemSpacing.Y / 2), NeutralLook.U32(NeutralLook.Text), candidates[index]);
         }
+
+        list.AddRect(box.From, max, NeutralLook.U32(NeutralLook.Border));
     }
 
     // The field's own text is the model's line, which Tab and the arrows change through the model
