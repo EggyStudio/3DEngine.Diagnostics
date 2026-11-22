@@ -18,8 +18,15 @@ The console with its field running the window's whole width at its foot, flush t
 with no padding or border round it, the popup of six candidates open below it as wide, in one black,
 the answer line's row empty over the field, cut out on a white sheet.
 
+![](.github/assets/readings/2026-11-22-item-10-panel-popup-black.webp)
+The settings panel on the page of the settings named render on the console popup's opaque black, its
+text, selected band and border the popup's, scale at 1.25 selected on the gray band between the
+marks of left and right and meshlets saying it takes effect at the next start, over a white sheet
+where the old half-alpha ground read as gray, cut out with a title.
+
 Commits that day
 
+- `7bef80b` The console opens on F4 and the settings panel on F5 by default, the two keys swapped.
 - `fb10049` The console's field runs the window's whole width at its foot, flush to the edges with
   no border over them.
 - `918de6e` One panel is open at a time, the overlay, the settings panel, the console and any a host

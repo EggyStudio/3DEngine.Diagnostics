@@ -12,7 +12,8 @@ namespace Diagnostics;
 /// direction, so a host that feeds ImGui its input feeds the panel, a pad's where its backend sets
 /// <c>ImGuiBackendFlags.HasGamepad</c>. The window is sized to its rows, which ImGui measures in
 /// the first frame and draws from the second. It draws in the neutral look of the console, its
-/// palette pushed around the window and popped after, and takes no color from the host's theme.
+/// palette pushed around the window and popped after, on the opaque black of the console's popup
+/// so it reads over a bright scene, and takes no color from the host's theme.
 /// <see cref="Draw"/> is called on the host's thread between the host's <c>NewFrame</c> and
 /// <c>Render</c>.
 /// </remarks>
@@ -60,6 +61,7 @@ public sealed class ImGuiPanel(PanelModel model)
         ImGui.SetNextWindowPos(window / 2, ImGuiCond.Always, new Vector2(0.5f, 0.5f));
         ImGui.SetNextWindowSize(new Vector2(MathF.Min(Width, window.X), 0f), ImGuiCond.Always);
         using var look = NeutralLook.Push();
+        NeutralLook.PushPopupGround();
         if (ImGui.Begin("Panel##diagnostics", Window))
         {
             ImGui.TextUnformatted(_model.Title);
@@ -75,6 +77,7 @@ public sealed class ImGuiPanel(PanelModel model)
         }
 
         ImGui.End();
+        NeutralLook.PopPopupGround();
     }
 
     private static void Row(PanelRow row)

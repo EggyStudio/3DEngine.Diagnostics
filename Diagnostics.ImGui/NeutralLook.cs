@@ -27,12 +27,13 @@ internal static class NeutralLook
     /// <summary>An error line, a red that stands out on black.</summary>
     public static readonly Vector4 Error = new(1.00f, 0.40f, 0.38f, 1f);
 
-    /// <summary>The window and the field, black at half alpha.</summary>
+    /// <summary>The console's window and its field, black at half alpha.</summary>
     public static readonly Vector4 Ground = new(0f, 0f, 0f, 0.5f);
 
     /// <summary>
-    /// The popup of candidates and the field while the popup shows, plain black, so the box they
-    /// make is one shade over whatever lies behind the field and under it.
+    /// The popup of candidates, the field while the popup shows and the panel's window, plain
+    /// black, so the box they make is one shade over whatever lies behind it and the panel reads
+    /// over a bright scene.
     /// </summary>
     public static readonly Vector4 Popup = new(0f, 0f, 0f, 1f);
 
@@ -78,6 +79,16 @@ internal static class NeutralLook
         ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 0f);
         return new Pushed();
     }
+
+    /// <summary>
+    /// Pushes the popup's black as a window's ground, which the panel stands on so it reads over a
+    /// bright scene as the console's candidates do. Its text, selected band and border are the
+    /// palette's own, which the popup draws with too.
+    /// </summary>
+    public static void PushPopupGround() => ImGui.PushStyleColor(ImGuiCol.WindowBg, Popup);
+
+    /// <summary>Pops what <see cref="PushPopupGround"/> pushed.</summary>
+    public static void PopPopupGround() => ImGui.PopStyleColor();
 
     /// <summary>Pushes the popup's black for a field's ground, in all its states.</summary>
     public static void PushJoined()

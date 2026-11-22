@@ -107,6 +107,14 @@ documents, the skeleton, the design, the code, then the engines taking it.
     and the key that takes a picture change nothing of it. Tests hold each of the three pairs and
     the return to none open, and the cheatsheet says it.
 
+10. **The settings panel on the popup's black.** The settings panel draws on a faint gray backing
+    and is hard to read over a bright scene, where the console's candidates on their opaque black
+    read well. The panel takes the same ground, opaque black with the popup's text color, selection
+    bar and border, from the one place the neutral look keeps them, so the two cannot drift apart.
+    The rows' marks, the title and the page's path keep their layout. A drawing test holds that the
+    panel's ground and the popup's are the same color and opaque, and the README's panel capture is
+    retaken over a bright ground.
+
 ## Verdicts
 
 None yet.

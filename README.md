@@ -7,9 +7,10 @@
 The console as the ImGui library draws it, its field across the window's whole width at the foot
 and its popup of candidates open below it, joined in one shade, the log above left whole.
 
-![The settings panel on the page of the settings named render](.github/assets/readings/2026-11-21-item-4-panel-page.webp)
+![The settings panel on the page of the settings named render, on the popup's opaque black](.github/assets/readings/2026-11-22-item-10-panel-popup-black.webp)
 
-The settings panel on the page of the settings named render, one row selected.
+The settings panel on the page of the settings named render, one row selected, on the opaque black
+of the console's popup.
 
 Diagnostics is a library an engine takes as a git submodule, for what a developer and a player
 reach at the keyboard, console commands and settings in one registry, and the content of the
@@ -258,8 +259,9 @@ foreach (var key in host.KeysPressed) keys.KeyDown(key, typing: drawnConsole.Typ
   with a later dotted part that does, so `vsync` offers `render.vsync` and Tab fills it. After a
   setting's name they are its choices.
 
-- The panel is a window in the middle, sized to its rows, which ImGui measures in the first frame
-  and draws from the second. With `ImGuiPanel.ReadsKeys`, the default, it reads the arrows, Enter
+- The panel is a window in the middle on the opaque black of the console's popup, so it reads over
+  a bright scene, sized to its rows, which ImGui measures in the first frame and draws from the
+  second. With `ImGuiPanel.ReadsKeys`, the default, it reads the arrows, Enter
   and Escape and a pad's directions, lower face button and right face button from ImGui's keys, so
   a host that feeds ImGui its input feeds the panel, a pad's where the host's backend sets
   `ImGuiBackendFlags.HasGamepad`. A host that steers the model itself turns it off.

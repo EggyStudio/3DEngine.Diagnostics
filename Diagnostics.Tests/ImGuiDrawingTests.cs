@@ -556,6 +556,49 @@ public sealed class ImGuiDrawingTests
     }
 
     [Fact]
+    public void The_Panels_Ground_Is_The_Popups_Black_Opaque_With_The_Same_Selected_Band()
+    {
+        var registry = Make();
+        var console = new ConsoleModel(registry) { Open = true };
+        var panel = new PanelModel(registry);
+        var (drawnConsole, drawnPanel) = (new ImGuiConsole(console) { Height = 0.5f }, new ImGuiPanel(panel));
+        using var frames = new ImGuiFrames(960, 540);
+        void Draw()
+        {
+            drawnConsole.Draw(frames.Size);
+            drawnPanel.Draw(frames.Size);
+        }
+
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+        frames.Type("re", Draw);
+        frames.Frame(Draw);
+        Assert.True(console.PopupShown);
+        int Red(int x, int y) => frames.Picture[(y * 960 + x) * 4];
+
+        // The popup's rows below the window, over the white sheet, the darkest taken as the
+        // selected row is banded.
+        var popup = Enumerable.Range(270 + 2, 40).Min(y => Red(700, y));
+        Assert.Equal(0, popup);
+
+        // The panel's empty ground, right of its title, over the same sheet. Opaque black over
+        // white is black, where half alpha would leave a gray.
+        (console.Open, panel.Open) = (false, true);
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+        var top = Enumerable.Range(0, 540).First(y => Red(700, y) != 255);
+        var ground = Red(700, top + 6);
+        Assert.Equal(popup, ground);
+        Assert.Equal(0, ground);
+
+        // The selected row's band is the console's selected row's gray.
+        frames.Tap(ImGuiKey.DownArrow, Draw);
+        var band = Enumerable.Range(top, 200).Select(y => Red(300, y)).Where(r => r != 0 && r != 255).ToArray();
+        Assert.NotEmpty(band);
+        Assert.Contains(88, band);
+    }
+
+    [Fact]
     public void The_Console_Is_Drawn_With_Its_Popup_And_Ghost_For_A_Picture()
     {
         var registry = Make();
