@@ -18,7 +18,7 @@ context. The overlay is drawn by the host from its model, with whatever text the
 |---|---|
 | `Registry` | The commands and the settings of a process by name in one namespace, a name added twice refused, and `Run`, which runs a line as a command or as the reading or setting of a setting, with `help`, `list` and `reset` of its own |
 | `Command` and `Argument` | A console command, its dotted name, summary, usage, the words it takes and what runs it |
-| `CommandLine` | A line as a console takes it, its name, the rest as typed and its words, split at blanks with a quoted word kept whole |
+| `CommandLine` | A line as a console takes it, its name, the rest as typed, the rest as one text with one pair of quotes around it taken off, and its words, split at blanks with a quoted word kept whole |
 | `Answer` | What a line answers, its text and, where it failed, a code in capitals a script reads, and the exception of a command that threw, which a host logs and shows no player |
 | `CommandAttribute` | The mark a host's generator reads on a static method to add it as a command |
 | `Setting` and `Setting<T>` | A setting of a bool, an int, a float, a double, an enum or a string, its default, its range or choices, the host's getter and setter, whether it takes effect at the next start, and the environment variable that overrides it |
@@ -270,7 +270,9 @@ module, a command's or a setting's name that the console completes, and a parame
 default is an argument with `Optional` set, which the usage shows in brackets.
 
 A command that takes its line whole, as a fragment of code or a path with blanks, declares one
-argument with `TakesLine` and reads `CommandLine.Rest`.
+argument with `TakesLine` and reads `CommandLine.Rest`, or `CommandLine.Text` where the player may
+put the whole line in one pair of quotes, which it takes off and with it the escapes of `\"` and
+`\\`.
 
 ## Building and testing
 

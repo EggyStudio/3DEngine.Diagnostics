@@ -43,6 +43,7 @@ bool TakesLine { get; init; }                            // Whether the argument
 class CommandLine                                        // A line as a console takes it, its first word the name and the rest its words
 string Name { get; }                                     // The line's first word, a command's or a setting's name, empty for a blank line
 string Rest { get; }                                     // The line after its name as it was typed, with the blanks at its ends taken off
+string Text { get; }                                     // The rest as one text, for a command that takes code or a path whole
 IReadOnlyList<string> Words { get; }                     // The words after the name, split as Split splits them
 CommandLine Parse(string line);                          // Reads a line into its name and the rest
 IReadOnlyList<string> Split(string text);                // Splits a text into words at blanks, a quoted word kept whole

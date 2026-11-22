@@ -10,6 +10,8 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 
 Commits that day
 
+- `cadf222` The answer of a command that threw carries the exception as Answer.Error for the host to
+  log, with its text and its FAILED code as they were, and no other answer carries one.
 - `10a18e1` The console takes a stamp function from the host, its frame number, and every line
   carries the stamp of its latest writing as ConsoleLine.Stamp, 0 where there is no function.
 - `1675fe2` The console raises LineWritten for each line it keeps, with the line as it stands and

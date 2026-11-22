@@ -95,6 +95,7 @@ public sealed class CommandAttribute(string name, string summary) : Attribute
 public sealed class CommandLine
 {
     private IReadOnlyList<string>? _words;
+    private string? _text;
 
     private CommandLine(string name, string rest)
     {
@@ -110,8 +111,47 @@ public sealed class CommandLine
     /// off.</summary>
     public string Rest { get; }
 
+    /// <summary>The rest as one text, for a command that takes code or a path whole.</summary>
+    /// <remarks>
+    /// <para>
+    /// Where the rest is one word in one pair of quotes, the quote that opens it is its first
+    /// character, the quote that closes it its last, and no unescaped quote lies between, the text
+    /// is what lies between with <c>\"</c> and <c>\\</c> read as the quote and the backslash, so
+    /// <c>"Print(\"a b\")"</c> gives <c>Print("a b")</c>. Any other rest is given as typed, a
+    /// quoted word followed by more words, a line whose inner quotes are not escaped and a rest
+    /// with no quotes among them, so <c>1 + 2</c> gives <c>1 + 2</c>.
+    /// </para>
+    /// <para>
+    /// A backslash before any other character stays, as <see cref="Split"/> keeps it, so a path
+    /// <c>"C:\dir x"</c> gives <c>C:\dir x</c>. An empty rest gives an empty text.
+    /// </para>
+    /// </remarks>
+    public string Text => _text ??= Unquote(Rest);
+
     /// <summary>The words after the name, split as <see cref="Split"/> splits them.</summary>
     public IReadOnlyList<string> Words => _words ??= Split(Rest);
+
+    private static string Unquote(string rest)
+    {
+        if (rest.Length < 2 || rest[0] != '"' || rest[^1] != '"') return rest;
+        var text = new StringBuilder();
+        for (var i = 1; i < rest.Length - 1; i++)
+        {
+            if (rest[i] == '\\' && rest[i + 1] is '"' or '\\')
+            {
+                // The pair is read as one character, and a pair that ends at the closing quote
+                // leaves that quote escaped, so the rest does not close.
+                if (i + 1 == rest.Length - 1) return rest;
+                text.Append(rest[++i]);
+            }
+            else if (rest[i] == '"')
+                return rest;
+            else
+                text.Append(rest[i]);
+        }
+
+        return text.ToString();
+    }
 
     /// <summary>Reads a line into its name and the rest.</summary>
     /// <param name="line">The line as typed.</param>

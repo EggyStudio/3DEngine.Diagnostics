@@ -78,6 +78,25 @@ public class RegistryTests
         Assert.Equal("", registry.Run("   ").Text);
     }
 
+    [Theory]
+    [InlineData("script.run \"1 + 2\"", "1 + 2")]
+    [InlineData("script.run 1 + 2", "1 + 2")]
+    [InlineData("script.run \"Print(\\\"a b\\\")\"", "Print(\"a b\")")]
+    [InlineData("script.run \"a\\\\b\"", "a\\b")]
+    [InlineData("script.run \"C:\\dir x\"", "C:\\dir x")]
+    [InlineData("script.run \"a\" b", "\"a\" b")]
+    [InlineData("script.run \"a \"b\" c\"", "\"a \"b\" c\"")]
+    [InlineData("script.run \"abc", "\"abc")]
+    [InlineData("script.run \"abc\\\"", "\"abc\\\"")]
+    [InlineData("script.run abc\"", "abc\"")]
+    [InlineData("script.run \"\"", "")]
+    [InlineData("script.run", "")]
+    [InlineData("script.run   ", "")]
+    public void The_Rest_As_One_Text_Loses_One_Pair_Of_Quotes_Around_It_And_Is_Else_As_Typed(string line, string text)
+    {
+        Assert.Equal(text, CommandLine.Parse(line).Text);
+    }
+
     [Fact]
     public void An_Unknown_Name_And_A_Throwing_Command_Answer_With_Their_Codes()
     {
