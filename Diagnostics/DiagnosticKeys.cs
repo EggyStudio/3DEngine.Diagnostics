@@ -40,7 +40,7 @@ public enum KeyAction
 /// </para>
 /// <para>Every member is called on the host's thread.</para>
 /// </remarks>
-public sealed class DiagnosticKeys
+public sealed class DiagnosticKeys : IDisposable
 {
     private static readonly (KeyAction Action, string Name, string Default, string Summary)[] Table =
     [
@@ -51,19 +51,40 @@ public sealed class DiagnosticKeys
         (KeyAction.Console, "keys.console", "F5", "The key that opens and closes the console."),
     ];
 
+    private readonly Registry _registry;
     private readonly Setting<string>[] _keys;
     private readonly HashSet<string> _held = new(StringComparer.OrdinalIgnoreCase);
     private string? _candidate;
     private bool _chord;
+    private bool _disposed;
     private int _shift;
 
     /// <summary>Makes the keys and adds their five settings to a registry.</summary>
     /// <param name="registry">The registry that takes the settings.</param>
     public DiagnosticKeys(Registry registry)
     {
-        ArgumentNullException.ThrowIfNull(registry);
+        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _keys = [.. Table.Select(row => new Setting<string>(row.Name, row.Summary, row.Default))];
         foreach (var key in _keys) registry.Add(key);
+    }
+
+    /// <summary>
+    /// Takes the five settings out of the registry and ends the keys, so a process that makes keys
+    /// for one app after another adds a new set for each.
+    /// </summary>
+    /// <remarks>
+    /// A setting is taken out only where the registry still holds the very setting these keys
+    /// added, so a host that replaced one with its own keeps its own. Once the keys are disposed
+    /// <see cref="KeyDown"/>, <see cref="KeyUp"/> and <see cref="Take"/> do nothing, and a second
+    /// call of this one does nothing. It is called on the host's thread.
+    /// </remarks>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        foreach (var key in _keys)
+            if (ReferenceEquals(_registry.FindSetting(key.Name), key))
+                _registry.Remove(key.Name);
     }
 
     /// <summary>The overlay the overlay's key turns over, or null for none.</summary>
@@ -93,6 +114,7 @@ public sealed class DiagnosticKeys
     public void KeyDown(string key, bool typing = false)
     {
         ArgumentException.ThrowIfNullOrEmpty(key);
+        if (_disposed) return;
         if (IsShift(key))
         {
             _shift++;
@@ -112,6 +134,7 @@ public sealed class DiagnosticKeys
     public KeyAction? KeyUp(string key)
     {
         ArgumentException.ThrowIfNullOrEmpty(key);
+        if (_disposed) return null;
         if (IsShift(key))
         {
             _shift = Math.Max(0, _shift - 1);
@@ -131,6 +154,7 @@ public sealed class DiagnosticKeys
     /// <param name="shift">Whether the overlay's detail is meant.</param>
     public void Take(KeyAction action, bool shift = false)
     {
+        if (_disposed) return;
         switch (action)
         {
             case KeyAction.HideInterface:

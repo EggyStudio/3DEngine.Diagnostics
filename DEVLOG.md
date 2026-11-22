@@ -10,6 +10,9 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 
 Commits that day
 
+- `7f84619` CommandLine.Text gives the rest as one text, with one pair of quotes around the whole
+  rest taken off and its escaped quotes and backslashes undone, and the rest as typed where it is no
+  such pair.
 - `cadf222` The answer of a command that threw carries the exception as Answer.Error for the host to
   log, with its text and its FAILED code as they were, and no other answer carries one.
 - `10a18e1` The console takes a stamp function from the host, its frame number, and every line

@@ -224,6 +224,7 @@ OverlayModel? Overlay { get; init; }                     // The overlay the over
 PanelModel? Panel { get; init; }                         // The panel the panel's key turns over, or null for none
 ConsoleModel? Console { get; init; }                     // The console the console's key turns over, or null for none
 bool InterfaceHidden { get; set; }                       // Whether the program's interface is hidden, which a host reads before it draws it
+void Dispose();                                          // Takes the five settings out of the registry and ends the keys, so a process that makes keys for one app after another adds a new set for each
 Setting<string> KeyOf(KeyAction action);                 // The setting that holds an action's key
 void KeyDown(string key, bool typing = false);           // Takes a key that went down
 KeyAction? KeyUp(string key);                            // Takes a key that came up, and gives the action it took, or null

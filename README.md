@@ -27,7 +27,7 @@ context. The overlay is drawn by the host from its model, with whatever text the
 | `ConsoleLine` and `ConsoleLevel` | A line a console shows, whether it was entered, plain, a warning or an error, which a drawer colors it by, how many times a host wrote it in a row, its number in the stream and the host's stamp |
 | `OverlayModel`, `OverlayPlace` and `FrameStats` | The debug overlay's content with no drawing, named sections of lines a host fills in four places, asked four times a second, the last 240 frames' times and their statistics, the last, the average and the 1% low |
 | `PanelModel`, `PanelPage`, `PanelRow`, `PanelRowKind` and `PanelInput` | The settings panel's content with no drawing, a page for each first word of the settings' names and a host's own pages of settings, actions and text, steered by up, down, left, right, accept and back |
-| `DiagnosticKeys` and `KeyAction` | The five keys as text settings a player rebinds, F1 hiding the interface, F2 asking for a screenshot, F3 the overlay, F4 the panel and F5 the console, each taken on its key's release and never by a chord |
+| `DiagnosticKeys` and `KeyAction` | The five keys as text settings a player rebinds, F1 hiding the interface, F2 asking for a screenshot, F3 the overlay, F4 the panel and F5 the console, each taken on its key's release and never by a chord, and disposed to take the settings out |
 | `ImGuiConsole` and `ImGuiPanel` | In `3DEngine.Diagnostics.ImGui`, the console and the settings panel drawn with Dear ImGui in a host's frame, the console's field with history, completion and a hint, the panel steered by ImGui's arrows, Enter, Escape and a pad |
 | `SettingsFile` | The settings kept across runs in one text file of name and value lines, only the values that differ from their defaults, with unknown names kept |
 
@@ -185,6 +185,9 @@ if (panel.Open && host.Pressed("Down")) panel.Press(PanelInput.Down);
 - The panel takes six inputs and repeats none, so a held key or stick is repeated by the host. A
   row is drawn from `PanelRow`, its label, its value and its marks for a value that waits for the
   next start and one the environment overrides.
+- The keys' five settings are added to the registry as the keys are made, and the registry takes a
+  name once, so a process that makes keys for one app after another disposes each set, which takes
+  its five settings out and ends its handling of keys.
 - The overlay, the panel and the keys are the host's thread's.
 
 ### Drawing with ImGui

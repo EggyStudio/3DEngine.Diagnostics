@@ -18,6 +18,44 @@ public class DiagnosticKeysTests
     }
 
     [Fact]
+    public void Disposed_Keys_Take_Their_Five_Settings_Out_So_Another_Set_Of_Keys_Is_Made_For_The_Registry()
+    {
+        var (keys, registry, _, _, _) = Make();
+        keys.Dispose();
+        Assert.Equal("", registry.Run("list keys.").Text);
+        Assert.Null(registry.FindSetting("keys.console"));
+
+        // The registry of a process that makes an app after an app takes a second set, and a third.
+        using var second = new DiagnosticKeys(registry);
+        Assert.Equal(5, registry.Settings.Count(setting => setting.Name.StartsWith("keys.")));
+        second.Dispose();
+        second.Dispose();
+        using var third = new DiagnosticKeys(registry);
+        Assert.NotNull(registry.FindSetting("keys.overlay"));
+    }
+
+    [Fact]
+    public void Dispose_Removes_Only_The_Settings_The_Keys_Added_And_Ends_Their_Key_Handling()
+    {
+        var (keys, registry, overlay, _, console) = Make();
+        // A host that took a setting out and added its own of the name keeps its own.
+        registry.Remove("keys.panel");
+        var own = new Setting<string>("keys.panel", "The host's own.", "P");
+        registry.Add(own);
+        registry.Remove("keys.screenshot");
+        keys.Dispose();
+
+        Assert.Same(own, registry.FindSetting("keys.panel"));
+        Assert.Equal(["keys.panel"], registry.Settings.Select(setting => setting.Name));
+
+        // A disposed set of keys turns nothing over, whatever key comes up.
+        Assert.Null(Tap(keys, "F5"));
+        Assert.False(console.Open);
+        keys.Take(KeyAction.Overlay);
+        Assert.False(overlay.Shown);
+    }
+
+    [Fact]
     public void The_Five_Keys_Default_To_F1_To_F5_And_Turn_Their_Parts_Over()
     {
         var (keys, registry, overlay, panel, console) = Make();
