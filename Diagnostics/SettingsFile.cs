@@ -28,13 +28,20 @@ namespace Diagnostics;
 /// part of the program that loads late may not be there at the close. A line refused and a write
 /// that failed are told through <see cref="Trouble"/>, on the thread that added or set.
 /// </para>
+/// <para>
+/// A host disposes the file as its program stops. The file then writes once more where a value is
+/// unsaved, stops hearing the registry and writes nothing again, so a setting added after the stop
+/// leaves the file as it was.
+/// </para>
 /// </remarks>
-public sealed class SettingsFile
+public sealed class SettingsFile : IDisposable
 {
     private readonly List<(int Number, string Text)> _kept = [];
     private readonly object _gate = new();
+    private readonly List<Setting> _listening = [];
     private Registry? _registry;
     private string? _held;
+    private bool _stopped;
 
     /// <summary>Makes the file at a path, which is read and written when asked.</summary>
     /// <param name="path">The file's path.</param>
@@ -68,7 +75,8 @@ public sealed class SettingsFile
     /// <remarks>
     /// A missing file reads as an empty one. A value a setting refuses leaves the setting at its
     /// default and its line is not written again. The file then listens to the registry, so a
-    /// setting added later is given its line and written when it is set.
+    /// setting added later is given its line and written when it is set, until the file is
+    /// disposed. A file that was disposed cannot read again.
     /// </remarks>
     /// <param name="registry">The registry whose settings take the values.</param>
     public IReadOnlyList<string> Read(Registry registry)
@@ -76,7 +84,8 @@ public sealed class SettingsFile
         ArgumentNullException.ThrowIfNull(registry);
         lock (_gate)
         {
-            if (_registry is not null) _registry.SettingAdded -= Added;
+            ObjectDisposedException.ThrowIf(_stopped, this);
+            Hush();
             _registry = registry;
             registry.SettingAdded += Added;
             _kept.Clear();
@@ -104,13 +113,14 @@ public sealed class SettingsFile
     /// </summary>
     /// <remarks>
     /// The text goes to a file beside the path first, which then takes the path's place, so a
-    /// program stopped midway leaves the file as it was.
+    /// program stopped midway leaves the file as it was. A file that was disposed writes nothing.
     /// </remarks>
     /// <param name="registry">The registry whose settings are kept.</param>
     public bool Write(Registry registry)
     {
         lock (_gate)
         {
+            if (_stopped) return false;
             var text = Text(registry);
             if (text == _held) return false;
             if (System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path)) is { Length: > 0 } folder)
@@ -120,6 +130,33 @@ public sealed class SettingsFile
             File.Move(beside, Path, overwrite: true);
             _held = text;
             return true;
+        }
+    }
+
+    /// <summary>
+    /// Writes the file once more where a value is unsaved, then stops hearing the registry, so
+    /// nothing a setting does afterward reaches the file.
+    /// </summary>
+    /// <remarks>
+    /// A write that fails is told through <see cref="Trouble"/> and the file stops all the same,
+    /// since a program stopping has nowhere to take the exception. A second call does nothing.
+    /// </remarks>
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_stopped) return;
+            try
+            {
+                if (_registry is { } registry) Write(registry);
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            {
+                Trouble?.Invoke($"{System.IO.Path.GetFileName(Path)} is not written. {error.Message}");
+            }
+
+            Hush();
+            _stopped = true;
         }
     }
 
@@ -149,6 +186,7 @@ public sealed class SettingsFile
     {
         lock (_gate)
         {
+            if (_stopped) return;
             var at = _kept.FindIndex(kept => CommandLine.Parse(kept.Text).Name == setting.Name);
             if (at >= 0)
             {
@@ -156,9 +194,20 @@ public sealed class SettingsFile
                 _kept.RemoveAt(at);
                 if (Apply(setting, CommandLine.Parse(text), number) is { } refused) Trouble?.Invoke(refused);
             }
-        }
 
-        setting.Changed += Written;
+            // After the line is applied, so that applying it writes nothing.
+            setting.Changed += Written;
+            _listening.Add(setting);
+        }
+    }
+
+    // The file hears the registry's additions and its late settings' changes no more.
+    private void Hush()
+    {
+        if (_registry is not null) _registry.SettingAdded -= Added;
+        foreach (var setting in _listening) setting.Changed -= Written;
+        _listening.Clear();
+        _registry = null;
     }
 
     private void Written(Setting setting)

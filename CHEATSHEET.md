@@ -253,6 +253,7 @@ string Path { get; }                                     // The file's path
 SettingsFile For(string game);                           // The file of a game in the player's folder, settings.txt in a folder of the game's name under the system's folder of applications' data
 IReadOnlyList<string> Read(Registry registry);           // Reads the file into a registry's settings as a start does, and gives each line it refused with its reason
 bool Write(Registry registry);                           // Writes the file from a registry's settings where its text would change, and says whether it wrote
+void Dispose();                                          // Writes the file once more where a value is unsaved, then stops hearing the registry, so nothing a setting does afterward reaches the file
 string Text(Registry registry);                          // The text Write writes for a registry's settings
 event Action<string>? Trouble;                           // Raised with a sentence where a line of the file was refused by a setting added after the read, or the file could not be written after such a setting was set
 ```

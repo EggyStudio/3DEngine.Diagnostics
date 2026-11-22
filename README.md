@@ -168,7 +168,8 @@ It stands on these conventions.
 - The settings file keeps what a player set, through the console, the panel or the file, and not a
   value the program wrote through its getter. A setting added after `SettingsFile.Read` takes its
   line then, through `Registry.SettingAdded`, and the file is written when it is set. A write that
-  fails is told through `SettingsFile.Trouble`.
+  fails is told through `SettingsFile.Trouble`. `SettingsFile.Dispose` writes a last time where a
+  value is unsaved and then hears no event of the registry and writes nothing.
 - `SettingsFile.For` names a game's file, `settings.txt` in a folder of the game's name under the
   system's folder of applications' data, and a host with a folder of its own gives any path.
 

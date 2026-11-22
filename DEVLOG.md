@@ -10,6 +10,7 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 
 Commits that day
 
+- `2d4343d` The console wraps its lines at the window's width and has no horizontal scrollbar.
 - `c5e1876` The panel draws no marks round the value of a selected row that only reads.
 - `4f3cf53` Settings can only read, refuse a value, be unsigned, and keep a player's values in the
   file.

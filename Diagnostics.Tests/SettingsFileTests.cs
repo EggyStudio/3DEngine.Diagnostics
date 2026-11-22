@@ -202,6 +202,39 @@ public sealed class SettingsFileTests : IDisposable
     }
 
     [Fact]
+    public void A_Disposed_File_Writes_A_Last_Time_And_Then_Hears_Nothing_Of_The_Registry()
+    {
+        var (registry, scale, vsync, _, _) = Make();
+        var file = new SettingsFile(File_);
+        Assert.Empty(file.Read(registry));
+        var early = new Setting<int>("late.early", "Added before the stop.", 1) { Low = 0, High = 9 };
+        registry.Add(early);
+        var trouble = new List<string>();
+        file.Trouble += trouble.Add;
+
+        // A value unsaved at the stop is written by it. A set of a setting the host added before
+        // the read writes nothing, so this one waits for the stop.
+        early.TrySet(2);
+        scale.TrySet(1.5f);
+        Assert.Equal("late.early 2\n", File.ReadAllText(File_));
+        file.Dispose();
+        var stopped = File.ReadAllText(File_);
+        Assert.Equal("late.early 2\nrender.scale 1.5\n", stopped);
+
+        // Nothing a setting does afterward, added before the stop or after it, reaches the file.
+        var after = new Setting<bool>("late.after", "Added after the stop.", false);
+        registry.Add(after);
+        after.TrySet(true);
+        early.TrySet(3);
+        vsync.TrySet(false);
+        Assert.False(file.Write(registry));
+        Assert.Equal(stopped, File.ReadAllText(File_));
+        Assert.Empty(trouble);
+        Assert.Throws<ObjectDisposedException>(() => file.Read(registry));
+        file.Dispose();
+    }
+
+    [Fact]
     public void A_Write_That_Fails_After_A_Late_Set_Is_Told_And_Leaves_The_Set_Done()
     {
         Directory.CreateDirectory(_folder);

@@ -80,6 +80,12 @@ documents, the skeleton, the design, the code, then the engines taking it.
     cheatsheet, the guide and the README's settings paragraph follow in the same commit, and the
     README's captures are retaken only if what they show changes. No host is named.
 
+7. **The settings file can be told to stop.** A settings file keeps listening to the registry after
+    the program that read it has closed, so a setting added later writes a closed program's file.
+    The file gains a way to stop, by Dispose, after which it hears no event of the registry and
+    writes nothing, with a last write at the stop where a value is unsaved. A test adds a setting
+    after the stop and finds the file as it was. One commit, the cheatsheet with it.
+
 ## Verdicts
 
 None yet.
