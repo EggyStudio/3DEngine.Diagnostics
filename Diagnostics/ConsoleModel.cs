@@ -17,9 +17,23 @@ public enum ConsoleLevel
 }
 
 /// <summary>One line a console shows.</summary>
+/// <remarks>
+/// A line a host writes with <see cref="ConsoleModel.Write(ConsoleLevel, string)"/> that repeats
+/// the line before it, in its text and its level, is kept as that one line with a count, so a
+/// warning written every frame stays one line. Only lines a host writes at
+/// <see cref="ConsoleLevel.Info"/>, <see cref="ConsoleLevel.Warning"/> and
+/// <see cref="ConsoleLevel.Error"/> collapse. A line the player entered and the answer to it never
+/// do, since a console shows what was typed each time it was typed.
+/// </remarks>
 /// <param name="Text">The line's text, with no line end.</param>
 /// <param name="Level">What the line is.</param>
-public readonly record struct ConsoleLine(string Text, ConsoleLevel Level);
+/// <param name="Count">How many times the line was written in a row, 1 for one writing.</param>
+/// <param name="Index">
+/// The number of lines written before the line's first writing, that is
+/// <see cref="ConsoleModel.Written"/> as it stood then, which does not change as the line repeats
+/// or as older lines are dropped, so a drawer keys what it measured of the line by it.
+/// </param>
+public readonly record struct ConsoleLine(string Text, ConsoleLevel Level, int Count = 1, long Index = 0);
 
 /// <summary>
 /// A console's content with no drawing, a plain list of every line written, the line being
@@ -61,9 +75,10 @@ public sealed class ConsoleModel
 
     private readonly Registry _registry;
     private readonly object _gate = new();
-    private readonly Queue<ConsoleLine> _lines = new();
+    private readonly LinkedList<ConsoleLine> _lines = new();
     private readonly List<string> _history = [];
     private readonly int _depth;
+    private bool _lastWritten;
     private int _at;
     private string _draft = "";
     private string _typed = "";
@@ -164,16 +179,36 @@ public sealed class ConsoleModel
     }
 
     /// <summary>Writes a text into the console, a line for each of its lines.</summary>
+    /// <remarks>
+    /// A line that repeats the one before it, in its text and its level, where that one was written
+    /// here too, is counted on it as <see cref="ConsoleLine.Count"/> and added no more, whatever
+    /// its level but <see cref="ConsoleLevel.Input"/>. <see cref="Written"/> counts each writing.
+    /// </remarks>
     /// <param name="level">What the lines are, which a drawer colors them by.</param>
     /// <param name="text">The text.</param>
     public void Write(ConsoleLevel level, string text)
     {
         ArgumentNullException.ThrowIfNull(text);
+        Append(level, text, byHost: true);
+    }
+
+    // A line a host writes that repeats the last line kept, which a host wrote too, is counted on
+    // it. The entered lines and the answers to them are kept as they come.
+    private void Append(ConsoleLevel level, string text, bool byHost)
+    {
         lock (_gate)
             foreach (var line in text.ReplaceLineEndings("\n").Split('\n'))
             {
-                _lines.Enqueue(new(line, level));
-                if (_lines.Count > _depth) _lines.Dequeue();
+                var collapse = byHost && level != ConsoleLevel.Input;
+                if (collapse && _lastWritten && _lines.Last is { } last && last.Value.Text == line && last.Value.Level == level)
+                    last.Value = last.Value with { Count = last.Value.Count + 1 };
+                else
+                {
+                    _lines.AddLast(new ConsoleLine(line, level, Index: Written));
+                    if (_lines.Count > _depth) _lines.RemoveFirst();
+                    _lastWritten = collapse;
+                }
+
                 Written++;
             }
     }
@@ -207,9 +242,9 @@ public sealed class ConsoleModel
         if (_history.Count > HistoryDepth) _history.RemoveAt(0);
         (_at, _draft) = (_history.Count, "");
 
-        Write(ConsoleLevel.Input, "> " + entered);
+        Append(ConsoleLevel.Input, "> " + entered, byHost: false);
         var answer = _registry.Run(entered);
-        if (answer.Text.Length > 0) Write(answer.Done ? ConsoleLevel.Info : ConsoleLevel.Error, answer.Text);
+        if (answer.Text.Length > 0) Append(answer.Done ? ConsoleLevel.Info : ConsoleLevel.Error, answer.Text, byHost: false);
         return answer;
     }
 

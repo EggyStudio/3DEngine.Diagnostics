@@ -135,9 +135,11 @@ void Navigate(int direction);                            // Takes the up key, wh
 bool Accept();                                           // Fills the selected candidate in place of the word being typed, followed by a space, as the Tab key does, the first candidate where none is selected, and says whether there was one
 
 record struct ConsoleLine                                // One line a console shows
-ConsoleLine(string Text, ConsoleLevel Level);
+ConsoleLine(string Text, ConsoleLevel Level, int Count = 1, long Index = 0);
 string Text { get; init; }                               // The line's text, with no line end
 ConsoleLevel Level { get; init; }                        // What the line is
+int Count { get; init; }                                 // How many times the line was written in a row, 1 for one writing
+long Index { get; init; }                                // The number of lines written before the line's first writing, that is Written as it stood then, which does not change as the line repeats or as older lines are dropped, so a drawer keys what it measured of the line by it
 
 enum ConsoleLevel                                        // What a console's line is, which a console colors and filters by
 Input = 0,                                               // A line the player entered, shown again above its answer

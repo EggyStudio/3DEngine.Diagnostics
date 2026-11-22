@@ -231,6 +231,30 @@ public sealed class ImGuiDrawingTests
     }
 
     [Fact]
+    public void A_Collapsed_Line_Shows_Its_Count_After_Its_Text_Only_Where_It_Is_Over_One()
+    {
+        // The rightmost drawn pixel of the console's first line, written once and then twice.
+        int Right(int times)
+        {
+            var console = new ConsoleModel(new Registry()) { Open = true };
+            var drawn = new ImGuiConsole(console);
+            using var frames = new ImGuiFrames(960, 540);
+            void Draw() => drawn.Draw(frames.Size);
+            for (var i = 0; i < times; i++) console.Write(ConsoleLevel.Warning, "The shader cache is cold.");
+            frames.Frame(Draw);
+            frames.Frame(Draw);
+            for (var x = 900; x > 0; x--)
+                for (var y = 8; y < 28; y++)
+                    if (frames.Picture[(y * 960 + x) * 4 + 2] < 200) return x;
+            return 0;
+        }
+
+        var (once, twice, again) = (Right(1), Right(2), Right(1));
+        Assert.Equal(once, again);
+        Assert.True(twice > once + 10, $"{once} for one writing, {twice} for two");
+    }
+
+    [Fact]
     public void The_Console_Is_Drawn_With_Its_Popup_And_Ghost_For_A_Picture()
     {
         var registry = Make();
@@ -239,6 +263,7 @@ public sealed class ImGuiDrawingTests
         var drawn = new ImGuiConsole(console) { Height = 0.7f };
         console.Submit("help render.scale");
         console.Submit("render.scale 3");
+        console.Write(ConsoleLevel.Warning, "The shader cache is cold.");
         console.Write(ConsoleLevel.Warning, "The shader cache is cold.");
         console.Submit("entity.count");
         console.Submit("render.vsync off");

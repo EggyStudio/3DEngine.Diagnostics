@@ -6,14 +6,22 @@ kept under `.github/assets/readings` as WebP files named by their day, each on t
 says, and the notes written beside them as Markdown files named the same way. A line under Done
 names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit that closed it.
 
+## 2026-11-22
+
+Commits that day
+
+- `381fed2` The README binds a host in three named steps with a command that answers late and a
+  generator shown from its source to its emission, and the example gains greet.later, which answers
+  at once and writes its second line through the console from another thread.
+
 ## 2026-11-21
 
 ![](.github/assets/readings/2026-11-21-item-4-console-popup.webp)
 The console as the ImGui library draws it in ImGui's light style with no device, a plain list of
-every line with entered lines dimmed, a refused set in red and a host's warning in orange, the popup
-of six candidates above the field as wide as the field with the second selected, the ghost text
-nder.quality after the typed re, the window cut out with a white margin around it and no empty strip
-under the field.
+every line with entered lines dimmed, a refused set in red and a host's warning in orange shown once
+with its count after a second writing, the popup of six candidates above the field as wide as the
+field with the second selected, the ghost text nder.quality after the typed re, the window cut out
+with a white margin around it and no empty strip under the field.
 
 ![](.github/assets/readings/2026-11-21-item-4-panel-page.webp)
 The settings panel on the page of the settings named render, scale at 1.25 selected with its value

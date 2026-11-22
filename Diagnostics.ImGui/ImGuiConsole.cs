@@ -6,12 +6,13 @@ namespace Diagnostics;
 /// <summary>Draws a <see cref="ConsoleModel"/> with Dear ImGui, in a host's ImGui frame.</summary>
 /// <remarks>
 /// <para>
-/// The console is a window across the top of the host's window, a plain list of every line, the
-/// field the line is entered in and the hint under it where there is one. While the model's popup
-/// shows, the candidates stand in a box above the field, as wide as the field, six rows at most
-/// with the selected one banded, and the ghost text follows what is typed in a dimmed color. Up and
-/// down move the selection or walk the history, Tab fills the selected candidate and Enter runs the
-/// line, all by the model, while the field has the keyboard.
+/// The console is a window across the top of the host's window, a plain list of every line, a line
+/// written again in a row shown once with its count in brackets, the field the line is entered in
+/// and the hint under it where there is one. While the model's popup shows, the candidates stand in
+/// a box above the field, as wide as the field, six rows at most with the selected one banded, and
+/// the ghost text follows what is typed in a dimmed color. Up and down move the selection or walk
+/// the history, Tab fills the selected candidate and Enter runs the line, all by the model, while
+/// the field has the keyboard.
 /// </para>
 /// <para>
 /// The box and the ghost are drawn on ImGui's foreground list, so they stand over the console
@@ -81,14 +82,16 @@ public sealed class ImGuiConsole(ConsoleModel model)
         {
             foreach (var line in _model.Lines())
             {
+                // A line written again in a row shows its count after its text.
+                var text = line.Count > 1 ? $"{line.Text} (x{line.Count})" : line.Text;
                 if (ColorOf(line.Level) is { } color)
                 {
                     ImGui.PushStyleColor(ImGuiCol.Text, color);
-                    ImGui.TextUnformatted(line.Text);
+                    ImGui.TextUnformatted(text);
                     ImGui.PopStyleColor();
                 }
                 else
-                    ImGui.TextUnformatted(line.Text);
+                    ImGui.TextUnformatted(text);
             }
 
             // A new line scrolls the view to the end where the view stood at the end, so a

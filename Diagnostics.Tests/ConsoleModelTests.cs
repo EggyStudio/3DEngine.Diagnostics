@@ -36,14 +36,64 @@ public class ConsoleModelTests
         console.Write(ConsoleLevel.Warning, "The shader cache is cold.");
         Assert.Equal(
             [
-                new("> render.shot", ConsoleLevel.Input), new("written", ConsoleLevel.Info), new("two lines", ConsoleLevel.Info),
-                new("> render.show x", ConsoleLevel.Input), new("No such pass.", ConsoleLevel.Error),
-                new("The shader cache is cold.", ConsoleLevel.Warning),
+                new("> render.shot", ConsoleLevel.Input, Index: 0), new("written", ConsoleLevel.Info, Index: 1),
+                new("two lines", ConsoleLevel.Info, Index: 2), new("> render.show x", ConsoleLevel.Input, Index: 3),
+                new("No such pass.", ConsoleLevel.Error, Index: 4), new("The shader cache is cold.", ConsoleLevel.Warning, Index: 5),
             ],
             console.Lines());
         Assert.Equal(6, console.Written);
         console.Clear();
         Assert.Empty(console.Lines());
+    }
+
+    [Fact]
+    public void A_Line_A_Host_Writes_Again_Is_One_Line_With_A_Count_And_Written_Counts_Each()
+    {
+        var console = new ConsoleModel(new Registry());
+        for (var i = 0; i < 3; i++) console.Write(ConsoleLevel.Warning, "The shader cache is cold.");
+        console.Write(ConsoleLevel.Error, "The shader cache is cold.");
+        console.Write(ConsoleLevel.Info, "Ready.");
+        console.Write(ConsoleLevel.Info, "Ready.");
+        console.Write(ConsoleLevel.Warning, "The shader cache is cold.");
+
+        // The same text at another level is another line, and a line that came between breaks the
+        // run.
+        Assert.Equal(
+            [
+                new ConsoleLine("The shader cache is cold.", ConsoleLevel.Warning, Count: 3, Index: 0),
+                new ConsoleLine("The shader cache is cold.", ConsoleLevel.Error, Count: 1, Index: 3),
+                new ConsoleLine("Ready.", ConsoleLevel.Info, Count: 2, Index: 4),
+                new ConsoleLine("The shader cache is cold.", ConsoleLevel.Warning, Count: 1, Index: 6),
+            ],
+            console.Lines());
+        Assert.Equal(7, console.Written);
+    }
+
+    [Fact]
+    public void A_Line_Entered_And_Its_Answer_Never_Collapse_Nor_Does_A_Written_Line_Onto_An_Answer()
+    {
+        var (console, _) = Make();
+        console.Submit("render.shot");
+        console.Submit("render.shot");
+        console.Write(ConsoleLevel.Info, "two lines");
+        console.Write(ConsoleLevel.Input, "> render.shot");
+        console.Write(ConsoleLevel.Input, "> render.shot");
+
+        Assert.Equal(9, console.Lines().Count);
+        Assert.All(console.Lines(), line => Assert.Equal(1, line.Count));
+        Assert.Equal(Enumerable.Range(0, 9).Select(i => (long)i), console.Lines().Select(line => line.Index));
+        Assert.Equal(9, console.Written);
+    }
+
+    [Fact]
+    public void A_Collapsed_Line_Keeps_Its_Index_When_Older_Lines_Are_Dropped()
+    {
+        var console = new ConsoleModel(new Registry(), depth: 2);
+        console.Write(ConsoleLevel.Info, "a");
+        console.Write(ConsoleLevel.Info, "b");
+        console.Write(ConsoleLevel.Info, "b");
+        console.Write(ConsoleLevel.Info, "c");
+        Assert.Equal([("b", 2, 1L), ("c", 1, 3L)], console.Lines().Select(line => (line.Text, line.Count, line.Index)));
     }
 
     [Fact]
