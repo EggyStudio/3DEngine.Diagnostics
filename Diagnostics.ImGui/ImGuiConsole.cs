@@ -6,9 +6,10 @@ namespace Diagnostics;
 /// <summary>Draws a <see cref="ConsoleModel"/> with Dear ImGui, in a host's ImGui frame.</summary>
 /// <remarks>
 /// <para>
-/// The console is a window across the top of the host's window, a plain list of every line, a line
-/// written again in a row shown once with its count in brackets, the field the line is entered in
-/// and the hint under it where there is one. While the model's popup shows, the candidates stand in
+/// The console is a window across the top of the host's window, a plain list of every line, wrapped
+/// at the window's width so the list scrolls only vertically, a line written again in a row shown
+/// once with its count in brackets, the field the line is entered in and the hint under it where
+/// there is one. While the model's popup shows, the candidates stand in
 /// a box above the field, as wide as the field, six rows at most with the selected one banded, and
 /// the ghost text follows what is typed in a dimmed color. Up and down move the selection or walk
 /// the history, Tab fills the selected candidate and Enter runs the line, all by the model, while
@@ -81,8 +82,12 @@ public sealed class ImGuiConsole(ConsoleModel model)
     {
         // The lines take what the window has left over the field and the hint under it.
         var room = ImGui.GetContentRegionAvail().Y - ImGui.GetFrameHeightWithSpacing() - (hinted ? ImGui.GetTextLineHeightWithSpacing() : 0f);
-        if (ImGui.BeginChild("##lines", new Vector2(0f, MathF.Max(room, ImGui.GetTextLineHeight())), ImGuiChildFlags.None, ImGuiWindowFlags.HorizontalScrollbar))
+        if (ImGui.BeginChild("##lines", new Vector2(0f, MathF.Max(room, ImGui.GetTextLineHeight())), ImGuiChildFlags.None, ImGuiWindowFlags.None))
         {
+            // A line wraps at the window's width, so the log scrolls only vertically and a
+            // line wider than the window is read whole. Every line is laid out, with no clipper,
+            // because wrapped lines differ in height.
+            ImGui.PushTextWrapPos(0f);
             foreach (var line in _model.Lines())
             {
                 // A line written again in a row shows its count after its text.
@@ -96,6 +101,8 @@ public sealed class ImGuiConsole(ConsoleModel model)
                 else
                     ImGui.TextUnformatted(text);
             }
+
+            ImGui.PopTextWrapPos();
 
             // A new line scrolls the view to the end where the view stood at the end, so a
             // reader who scrolled up keeps the place.

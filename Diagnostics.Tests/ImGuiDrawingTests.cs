@@ -257,6 +257,33 @@ public sealed class ImGuiDrawingTests
     }
 
     [Fact]
+    public void A_Line_Wider_Than_The_Window_Wraps_And_The_Log_Has_No_Horizontal_Scrollbar()
+    {
+        // The pixels off the ground below the first line, where only a wrapped second line, or
+        // a scrollbar along the log's lower edge, leaves any.
+        int Below(string text)
+        {
+            var console = new ConsoleModel(new Registry()) { Open = true };
+            var drawn = new ImGuiConsole(console);
+            using var frames = new ImGuiFrames(960, 540);
+            void Draw() => drawn.Draw(frames.Size);
+            console.Write(ConsoleLevel.Warning, text);
+            frames.Frame(Draw);
+            frames.Frame(Draw);
+            var ground = frames.Picture[(20 * 960 + 940) * 4 + 2];
+            var ink = 0;
+            for (var y = 30; y < 60; y++)
+                for (var x = 0; x < 900; x++)
+                    if (Math.Abs(frames.Picture[(y * 960 + x) * 4 + 2] - ground) > 40) ink++;
+            return ink;
+        }
+
+        var wide = string.Join(' ', Enumerable.Repeat("The shader cache is cold.", 12));
+        Assert.Equal(0, Below("The shader cache is cold."));
+        Assert.True(Below(wide) > 0);
+    }
+
+    [Fact]
     public void A_Selected_Row_That_Only_Reads_Carries_No_Marks_Round_Its_Value()
     {
         // The vertices of the panel's page with the one setting selected, where the two marks
