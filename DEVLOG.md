@@ -8,8 +8,15 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 
 ## 2026-11-22
 
+![](.github/assets/readings/2026-11-22-item-8-console-popup.webp)
+The console with its popup of six candidates open below the field, joined to it in one black under
+one border and as wide, over the free part of the screen so the log above stays whole, the second
+candidate selected and the row for the answer line over the field empty, cut out on a white sheet.
+
 Commits that day
 
+- `10bf95e` The settings file is disposed with a last write, after which it hears no registry event
+  and writes nothing.
 - `2d4343d` The console wraps its lines at the window's width and has no horizontal scrollbar.
 - `c5e1876` The panel draws no marks round the value of a selected row that only reads.
 - `4f3cf53` Settings can only read, refuse a value, be unsigned, and keep a player's values in the

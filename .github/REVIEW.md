@@ -86,6 +86,27 @@ documents, the skeleton, the design, the code, then the engines taking it.
     writes nothing, with a last write at the stop where a value is unsaved. A test adds a setting
     after the stop and finds the file as it was. One commit, the cheatsheet with it.
 
+8. **The console's popup opens downward and the answer line sits above the field.** The candidates
+    open above the input field and cover the log, and the line that shows a setting's value while
+    typing appears under the field and pushes the console's content up as it comes and goes. Both
+    turn round so that nothing moves. The candidates open below the field, joined to it as they are,
+    over the free part of the screen, and the log above stays whole and readable. The line with the
+    value or the help of what is typed has one row of its own kept directly above the field, there
+    whether filled or empty, so the log and the field hold their place as it changes. Where a host's
+    console leaves no room below the field for the candidates, the Reply says so with the measure
+    before anything else is built. The model's tests hold the field's and the log's place the same
+    with and without candidates and with and without the line, and the README's console capture is
+    retaken.
+
+9. **One panel open at a time.** The overlay, the settings panel and the console each open on a key
+    of their own and stay open beside one another. Opening one closes the others, so the overlay's
+    key closes the panel and the console, the panel's key the overlay and the console, and the
+    console's key the other two, and the same key pressed again closes its own. The rule lives in
+    the module's core as one state a host reads, so every host behaves alike without code of its
+    own, and a panel a host adds by the same shape joins the rule. The key that hides the interface
+    and the key that takes a picture change nothing of it. Tests hold each of the three pairs and
+    the return to none open, and the cheatsheet says it.
+
 ## Verdicts
 
 None yet.

@@ -31,10 +31,10 @@ internal static class NeutralLook
     public static readonly Vector4 Ground = new(0f, 0f, 0f, 0.5f);
 
     /// <summary>
-    /// The popup of candidates, black over the lines it stands on, dense enough to keep them from
-    /// showing through.
+    /// The popup of candidates and the field while the popup shows, plain black, so the box they
+    /// make is one shade over whatever lies behind the field and under it.
     /// </summary>
-    public static readonly Vector4 Popup = new(0f, 0f, 0f, 0.85f);
+    public static readonly Vector4 Popup = new(0f, 0f, 0f, 1f);
 
     /// <summary>The chosen row, a neutral gray.</summary>
     public static readonly Vector4 Chosen = Gray(88);

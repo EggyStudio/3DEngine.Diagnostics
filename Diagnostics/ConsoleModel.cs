@@ -206,7 +206,7 @@ public sealed class ConsoleModel
     }
 
     /// <summary>
-    /// What a console shows under the line being entered, a command's usage or a setting in a
+    /// What a console shows over the line being entered, a command's usage or a setting in a
     /// sentence, of the name typed or of the one name the typed start leaves, or empty.
     /// </summary>
     public string Hint

@@ -132,7 +132,7 @@ bool PopupShown { get; }                                 // Whether the popup of
 int SelectedIndex { get; }                               // The selected candidate's index, or -1 where there is none
 int FirstVisible { get; }                                // The index of the first of the PopupRows rows the popup shows, which keeps the selected candidate in view
 string Ghost { get; }                                    // The rest of the selected candidate after the word being typed, where the popup shows and the candidate begins with the word, whatever its case, else empty
-string Hint { get; }                                     // What a console shows under the line being entered, a command's usage or a setting in a sentence, of the name typed or of the one name the typed start leaves, or empty
+string Hint { get; }                                     // What a console shows over the line being entered, a command's usage or a setting in a sentence, of the name typed or of the one name the typed start leaves, or empty
 void Write(ConsoleLevel level, string text);             // Writes a text into the console, a line for each of its lines
 IReadOnlyList<ConsoleLine> Lines();                      // Every kept line, oldest first
 void Clear();                                            // Drops every kept line

@@ -177,7 +177,7 @@ public sealed class ImGuiDrawingTests
     }
 
     [Fact]
-    public void The_Console_Leaves_No_Strip_Under_Its_Field_Where_There_Is_No_Hint()
+    public void The_Console_Leaves_No_Strip_Under_Its_Field_With_A_Hint_Or_Without()
     {
         var registry = Make();
         var console = new ConsoleModel(registry) { Open = true };
@@ -192,17 +192,113 @@ public sealed class ImGuiDrawingTests
         var height = (int)MathF.Round(540 * 0.4f);
         var ground = frames.Picture[((height - 3) * 960 + 480) * 4];
         bool Plain(int y) => Enumerable.Range(16, 928).All(x => frames.Picture[(y * 960 + x) * 4] == ground);
-        var strip = 0;
-        while (Plain(height - 2 - strip)) strip++;
-        Assert.True(strip <= ImGui.GetStyle().WindowPadding.Y + 2, $"{strip} rows under the field");
+        int Strip()
+        {
+            var rows = 0;
+            while (Plain(height - 2 - rows)) rows++;
+            return rows;
+        }
+
+        Assert.True(Strip() <= ImGui.GetStyle().WindowPadding.Y + 2, $"{Strip()} rows under the field");
         Assert.Equal("", console.Hint);
 
-        // A hint takes its row where the name typed has one, inside the window.
+        // The hint stands over the field, so a hint adds nothing under it.
         frames.Type("render.vsync", Draw);
         frames.Frame(Draw);
-        var lower = 0;
-        while (Plain(height - 2 - lower)) lower++;
-        Assert.True(console.Hint.Length > 0 && lower is > 0 and <= 10, $"{lower} rows under a hint");
+        Assert.True(console.Hint.Length > 0);
+        Assert.True(Strip() <= ImGui.GetStyle().WindowPadding.Y + 2, $"{Strip()} rows under the field and a hint");
+    }
+
+    [Fact]
+    public void The_Log_And_The_Field_Keep_Their_Place_With_And_Without_Candidates_And_The_Line()
+    {
+        var registry = Make();
+        var console = new ConsoleModel(registry) { Open = true };
+        var drawn = new ImGuiConsole(console);
+        console.Submit("help render.scale");
+        console.Submit("render.scale 3");
+        console.Write(ConsoleLevel.Warning, "The shader cache is cold.");
+        using var frames = new ImGuiFrames(960, 540);
+        void Draw() => drawn.Draw(frames.Size);
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+
+        // The window's ground is where nothing stands, read at the right edge of the log.
+        var height = (int)MathF.Round(540 * 0.4f);
+        var ground = frames.Picture[(100 * 960 + 940) * 4];
+        bool Field(int y) => frames.Picture[(y * 960 + 700) * 4] != ground;
+
+        // The field's top row, going up from the window's foot through the rows that are not
+        // ground, and the log's rows, which end over the line's row and so over the field's top.
+        int Top()
+        {
+            var y = height - 4;
+            while (Field(y)) y--;
+            y = height - 4;
+            while (!Field(y)) y--;
+            while (Field(y)) y--;
+            return y + 1;
+        }
+
+        var line = (int)ImGui.GetTextLineHeightWithSpacing();
+        byte[] Log() => frames.Picture[..((Top() - line - 1) * 960 * 4)];
+
+        // Nothing typed, with no candidates and no line.
+        var (top, log) = (Top(), Log());
+        Assert.False(console.PopupShown);
+        Assert.Equal("", console.Hint);
+        Assert.True(top > height - 40, $"the field's top at {top}");
+
+        // A line the host set whose name has a hint, with no candidates, since it was not edited.
+        console.Typed = "render.vsync";
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+        Assert.True(!console.PopupShown && console.Hint.Length > 0);
+        Assert.Equal(top, Top());
+        Assert.Equal(log, Log());
+
+        // Candidates with no line, and then candidates with a line.
+        console.Typed = "";
+        frames.Frame(Draw);
+        frames.Type("re", Draw);
+        frames.Frame(Draw);
+        Assert.True(console.PopupShown && console.Hint.Length == 0);
+        Assert.Equal(top, Top());
+        Assert.Equal(log, Log());
+
+        frames.Type("nder.vsyn", Draw);
+        frames.Frame(Draw);
+        Assert.True(console.PopupShown, $"popup {console.PopupShown}, typed {console.Typed}");
+        Assert.True(console.Hint.Length > 0);
+        Assert.Equal(top, Top());
+        Assert.Equal(log, Log());
+    }
+
+    [Fact]
+    public void The_Popup_Opens_Under_The_Field_Over_What_Is_Below_The_Console_And_Not_Over_The_Log()
+    {
+        var registry = Make();
+        var console = new ConsoleModel(registry) { Open = true };
+        var drawn = new ImGuiConsole(console);
+        console.Submit("entity.count");
+        using var frames = new ImGuiFrames(960, 540);
+        void Draw() => drawn.Draw(frames.Size);
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+
+        // Below the window's foot is the host's scene, here the white sheet.
+        var height = (int)MathF.Round(540 * 0.4f);
+        bool Sheet(int y) => Enumerable.Range(0, 960).All(x => frames.Picture[(y * 960 + x) * 4] == 255);
+        Assert.True(Enumerable.Range(height + 1, 540 - height - 1).All(Sheet));
+
+        frames.Type("re", Draw);
+        frames.Frame(Draw);
+        Assert.True(console.PopupShown);
+        var below = Enumerable.Range(height + 1, 540 - height - 1).Where(y => !Sheet(y)).ToArray();
+        var rows = Math.Min(ConsoleModel.PopupRows, console.Candidates.Count);
+        var rowHeight = ImGui.GetTextLineHeight() + ImGui.GetStyle().ItemSpacing.Y;
+        Assert.True(below.Length >= (rows - 1) * rowHeight, $"{below.Length} rows below the window");
+        Assert.Equal(below[^1] - below[0] + 1, below.Length);
     }
 
     [Fact]
@@ -378,22 +474,25 @@ public sealed class ImGuiDrawingTests
         frames.Frame(Draw);
         Assert.True(console.PopupShown);
 
-        // The window's own ground is the color of its empty part, where no text stands.
+        // The window's own ground is the color of its empty part, where no text stands, and below
+        // the window lies the host's scene, here the white sheet.
         var picture = frames.Picture;
         int Red(int x, int y) => picture[(y * 960 + x) * 4];
-        var ground = Red(700, 100);
         var height = (int)MathF.Round(540 * 0.5f);
+        var ground = Red(700, 100);
+        bool Ink(int x, int y) => Red(x, y) != (y < height ? ground : 255);
 
-        // Down the right of the box, from under the window's border to over its border at the foot,
-        // the rows that are not ground are one run, the popup and the field as one.
-        var rows = Enumerable.Range(4, height - 8).Where(y => Red(700, y) != ground).ToArray();
+        // Down the right of the box, from under the window's border to the box's foot, the rows
+        // that are not ground are one run, the field and the popup as one.
+        var rows = Enumerable.Range(4, 540 - 4).Where(y => Ink(700, y)).ToArray();
         Assert.True(rows.Length > 100, $"{rows.Length} rows");
         Assert.Equal(rows[^1] - rows[0] + 1, rows.Length);
+        Assert.True(rows[^1] > height + 60, $"the box ends at {rows[^1]}");
 
-        // The left and the right edge of a row of the popup and of the field are the same.
+        // The left and the right edge of a row of the field and of the popup are the same.
         (int Left, int Right) Edges(int y) => (
-            Enumerable.Range(0, 960).First(x => Red(x, y) != ground && x > 4),
-            Enumerable.Range(0, 960).Last(x => Red(x, y) != ground && x < 955));
+            Enumerable.Range(0, 960).First(x => Ink(x, y) && x > 4),
+            Enumerable.Range(0, 960).Last(x => Ink(x, y) && x < 955));
         Assert.Equal(Edges(rows[0] + 6), Edges(rows[^1] - 4));
     }
 
@@ -419,9 +518,10 @@ public sealed class ImGuiDrawingTests
         frames.Frame(Draw);
         Assert.True(console.PopupShown);
 
-        // With it, the popup's rows and the field's are one shade, the box's inside a single black.
-        var rows = Enumerable.Range(4, 270 - 8).Where(y => Red(700, y) != Red(700, 100)).ToArray();
-        var (popup, joined) = (Red(700, rows[0] + 2), Red(700, rows[^1] - 4));
+        // With it, the field and the popup's rows below the window are one shade, the box's
+        // inside a single black over the console's ground and over the scene alike.
+        var joined = Red(700, field[^1] - 4);
+        var popup = Red(700, 270 + 20);
         Assert.Equal(popup, joined);
         Assert.True(joined < alone, $"{joined} joined and {alone} alone");
     }

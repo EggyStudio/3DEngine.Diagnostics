@@ -2,10 +2,10 @@
 
 # Diagnostics
 
-![The console with its popup of candidates and the ghost text](.github/assets/readings/2026-11-21-item-4-console-popup.webp)
+![The console with its popup of candidates below the field](.github/assets/readings/2026-11-22-item-8-console-popup.webp)
 
-The console as the ImGui library draws it, its popup of candidates joined to the field in one
-shade and the ghost text after what is typed.
+The console as the ImGui library draws it, its popup of candidates open below the field and joined
+to it in one shade, the log above left whole.
 
 ![The settings panel on the page of the settings named render](.github/assets/readings/2026-11-21-item-4-panel-page.webp)
 
@@ -237,16 +237,18 @@ foreach (var key in host.KeysPressed) keys.KeyDown(key, typing: drawnConsole.Typ
 
 - The console is a window across the top, `ImGuiConsole.Height` of the host's window, 0.4 by
   default, holding a plain list of every line, colored by the line's level, a line a host wrote
-  again in a row once with its count in brackets, the field and the hint under it. Its field takes
-  the keyboard as the console opens.
-- The popup of candidates stands on the field once the player edited, its lower edge the field's
-  upper edge and as wide as the field, one border running round the two so they read as one box,
+  again in a row once with its count in brackets, a row of its own for the hint over the field, there
+  whether it holds a hint or not so the list and the field keep their place, and the field. Its
+  field takes the keyboard as the console opens.
+- The popup of candidates opens below the field once the player edited, its upper edge the field's
+  lower edge and as wide as the field, one border running round the two so they read as one box,
   its text starting where the typed text does, six rows at most with the selected one banded, and
   the ghost text follows what is typed, dimmed, where the selected candidate begins with the word
   being typed. Up and down move the selection while the popup shows and walk the history otherwise,
   Tab fills the selected candidate and Enter runs the line. `ImGuiConsole.Typing` says whether the
   field has the keyboard, which the host gives `DiagnosticKeys.KeyDown`. The box and the ghost are drawn on ImGui's foreground list, so they
-  stand over the console whichever window has the focus.
+  stand over the console whichever window has the focus, and the box over what lies below the
+  console, which it needs room for, the window's height less `ImGuiConsole.Height` of it.
 - The candidates are the names of commands and settings that begin with the word and then those
   with a later dotted part that does, so `vsync` offers `render.vsync` and Tab fills it. After a
   setting's name they are its choices.

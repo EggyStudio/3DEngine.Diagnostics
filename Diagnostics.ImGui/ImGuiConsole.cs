@@ -8,18 +8,22 @@ namespace Diagnostics;
 /// <para>
 /// The console is a window across the top of the host's window, a plain list of every line, wrapped
 /// at the window's width so the list scrolls only vertically, a line written again in a row shown
-/// once with its count in brackets, the field the line is entered in and the hint under it where
-/// there is one. While the model's popup shows, the candidates stand in
-/// a box above the field, as wide as the field, six rows at most with the selected one banded, and
-/// the ghost text follows what is typed in a dimmed color. Up and down move the selection or walk
-/// the history, Tab fills the selected candidate and Enter runs the line, all by the model, while
-/// the field has the keyboard.
+/// once with its count in brackets, a row of its own for the hint, and under it the field the line
+/// is entered in. The hint's row is there whether it holds a hint or not, so the list and the field
+/// keep their place as a hint comes and goes. While the model's popup shows, the candidates stand
+/// in a box under the field, as wide as the field, six rows at most with the selected one banded,
+/// and the ghost text follows what is typed in a dimmed color. Up and down move the selection or
+/// walk the history, Tab fills the selected candidate and Enter runs the line, all by the model,
+/// while the field has the keyboard.
 /// </para>
 /// <para>
 /// The box and the ghost are drawn on ImGui's foreground list, so they stand over the console
-/// whichever window has the focus. The console draws in the neutral look of the debug overlay,
-/// light gray text on black at half alpha, in one palette of its own pushed around its drawing and
-/// popped after, and takes no color from the host's theme. The font is the host's.
+/// whichever window has the focus, and the box over what lies below the console, never over the
+/// list. It needs room below the field, which the console leaves where <see cref="Height"/> is
+/// under one, the room being the window's height less the console's. The console draws in the
+/// neutral look of the debug overlay, light gray text on black at half alpha, in one palette of its
+/// own pushed around its drawing and popped after, and takes no color from the host's theme. The
+/// font is the host's.
 /// <see cref="Draw"/> is called on the host's thread between the host's <c>NewFrame</c> and
 /// <c>Render</c>.
 /// </para>
@@ -67,21 +71,21 @@ public sealed class ImGuiConsole(ConsoleModel model)
         using var look = NeutralLook.Push();
         if (ImGui.Begin("Console##diagnostics", Window))
         {
-            // The hint's row is the window's only where there is a hint, so a console with none
-            // has no empty strip under the field.
-            var hint = _model.Hint;
-            Lines(hint.Length > 0);
-            Entry(hint);
+            // The hint has a row of its own over the field, kept where there is no hint, so what
+            // is typed moves neither the list nor the field.
+            Lines();
+            Answer(_model.Hint);
+            Entry();
         }
 
         ImGui.End();
         _wasOpen = true;
     }
 
-    private void Lines(bool hinted)
+    private void Lines()
     {
-        // The lines take what the window has left over the field and the hint under it.
-        var room = ImGui.GetContentRegionAvail().Y - ImGui.GetFrameHeightWithSpacing() - (hinted ? ImGui.GetTextLineHeightWithSpacing() : 0f);
+        // The lines take what the window has left over the hint's row and the field.
+        var room = ImGui.GetContentRegionAvail().Y - ImGui.GetFrameHeightWithSpacing() - ImGui.GetTextLineHeightWithSpacing();
         if (ImGui.BeginChild("##lines", new Vector2(0f, MathF.Max(room, ImGui.GetTextLineHeight())), ImGuiChildFlags.None, ImGuiWindowFlags.None))
         {
             // A line wraps at the window's width, so the log scrolls only vertically and a
@@ -115,7 +119,14 @@ public sealed class ImGuiConsole(ConsoleModel model)
         ImGui.EndChild();
     }
 
-    private unsafe void Entry(string hint)
+    // The hint's row, as high as a line of text whether the hint is there or not.
+    private static void Answer(string hint)
+    {
+        if (hint.Length > 0) ImGui.TextDisabled(hint);
+        else ImGui.Dummy(new Vector2(0f, ImGui.GetTextLineHeight()));
+    }
+
+    private unsafe void Entry()
     {
         ImGui.SetNextItemWidth(-1f);
         if (!_wasOpen) ImGui.SetKeyboardFocusHere();
@@ -140,7 +151,6 @@ public sealed class ImGuiConsole(ConsoleModel model)
         _given = _model.Typed;
         Typing = ImGui.IsItemActive();
         var (min, max) = (ImGui.GetItemRectMin(), ImGui.GetItemRectMax());
-        if (hint.Length > 0) ImGui.TextDisabled(hint);
 
         if (!_model.PopupShown) return;
         var list = ImGui.GetForegroundDrawList();
@@ -159,9 +169,9 @@ public sealed class ImGuiConsole(ConsoleModel model)
             list.AddText(at, NeutralLook.U32(NeutralLook.Dim), ghost);
     }
 
-    // The candidates in a box whose lower edge is the field's upper edge and whose sides are the
+    // The candidates in a box whose upper edge is the field's lower edge and whose sides are the
     // field's, the selected row banded, their text starting where the typed text does, and one
-    // border running round the box and the field together, so the two read as one.
+    // border running round the field and the box together, so the two read as one.
     private void Popup(ImDrawListPtr list, Vector2 min, Vector2 max)
     {
         var style = ImGui.GetStyle();
@@ -169,7 +179,7 @@ public sealed class ImGuiConsole(ConsoleModel model)
         var rows = Math.Min(ConsoleModel.PopupRows, candidates.Count - _model.FirstVisible);
         var rowHeight = ImGui.GetTextLineHeight() + style.ItemSpacing.Y;
         var height = rows * rowHeight + style.WindowPadding.Y;
-        var box = (From: new Vector2(min.X, min.Y - height), To: new Vector2(max.X, min.Y));
+        var box = (From: new Vector2(min.X, max.Y), To: new Vector2(max.X, max.Y + height));
 
         list.AddRectFilled(box.From, box.To, NeutralLook.U32(NeutralLook.Popup));
         for (var row = 0; row < rows; row++)
@@ -181,7 +191,7 @@ public sealed class ImGuiConsole(ConsoleModel model)
             list.AddText(new Vector2(box.From.X + style.FramePadding.X, top + style.ItemSpacing.Y / 2), NeutralLook.U32(NeutralLook.Text), candidates[index]);
         }
 
-        list.AddRect(box.From, max, NeutralLook.U32(NeutralLook.Border));
+        list.AddRect(min, box.To, NeutralLook.U32(NeutralLook.Border));
     }
 
     // The field's own text is the model's line, which Tab and the arrows change through the model
