@@ -69,6 +69,20 @@ public abstract class Setting
     public bool ReadOnly { get; init; }
 
     /// <summary>
+    /// What says why the setting only reads for now, or null where it takes a set, asked each time
+    /// the setting is set or shown.
+    /// </summary>
+    /// <remarks>
+    /// While it says so, the panel shows the row as one that only reads, and a set, a step, a reset
+    /// or a line of the settings file answers <see cref="Answer.NotSettable"/> with that reason.
+    /// </remarks>
+    public Func<string?>? Lock { get; init; }
+
+    /// <summary>Why the setting only reads for now, or null where it takes a set or always only
+    /// reads.</summary>
+    public string? Locked => ReadOnly ? null : Lock?.Invoke();
+
+    /// <summary>
     /// The environment variable that overrides the value while it is set, or null for none.
     /// </summary>
     public string? EnvironmentVariable { get; init; }
@@ -323,7 +337,7 @@ public sealed class Setting<T> : Setting where T : notnull
     /// <inheritdoc/>
     public override Answer Move(int direction)
     {
-        if (ReadOnly) return NotSettable();
+        if (Unsettable() is { } refused) return refused;
         var up = direction >= 0;
         TryParse(StoredText, out var from);
         switch (Kind)
@@ -359,7 +373,7 @@ public sealed class Setting<T> : Setting where T : notnull
     private protected override Answer Set(string text, bool starting)
     {
         ArgumentNullException.ThrowIfNull(text);
-        if (ReadOnly) return NotSettable();
+        if (Unsettable() is { } refused) return refused;
         // A whole number of an unsigned type that is a number and no fit is out of its range, which
         // is a better word than one a player cannot read.
         if (Unsigned && BigInteger.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var big)
@@ -372,7 +386,7 @@ public sealed class Setting<T> : Setting where T : notnull
 
     private Answer Take(T value, bool starting)
     {
-        if (ReadOnly) return NotSettable();
+        if (Unsettable() is { } refused) return refused;
         if (Refusal(value) is { } refusal) return Answer.Fail(Answer.OutOfRange, refusal);
         ReadEnvironment();
         var before = (Text, StoredText);
@@ -450,6 +464,10 @@ public sealed class Setting<T> : Setting where T : notnull
     }
 
     private Answer NotSettable() => Answer.Fail(Answer.NotSettable, $"{Name} is read only.");
+
+    // The answer to a set of a setting that only reads, always or for now, or null where it
+    // takes one.
+    private Answer? Unsettable() => ReadOnly ? NotSettable() : Locked is { } why ? Answer.Fail(Answer.NotSettable, why) : null;
 
     // A whole number past what a double holds exactly is written in all its digits.
     private static string Number(double number) =>

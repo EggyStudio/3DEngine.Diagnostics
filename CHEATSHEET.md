@@ -76,6 +76,8 @@ SettingKind Kind { get; }                                // What the value is
 bool AtNextStart { get; init; }                          // Whether a set takes effect at the next start, the running value staying until then
 bool Saved { get; init; }                                // Whether the settings file keeps the value, which it does by default
 bool ReadOnly { get; init; }                             // Whether the setting only reads, shown with its value and answering every set, step and reset as NotSettable
+Func<string?>? Lock { get; init; }                       // What says why the setting only reads for now, or null where it takes a set, asked each time the setting is set or shown
+string? Locked { get; }                                  // Why the setting only reads for now, or null where it takes a set or always only reads
 string? EnvironmentVariable { get; init; }               // The environment variable that overrides the value while it is set, or null for none
 bool Overridden { get; }                                 // Whether the environment gives the running value, EnvironmentVariable being set to a value the setting takes
 string? EnvironmentRefusal { get; }                      // Why the environment's value was refused, or null where it was taken or none is set
@@ -211,7 +213,7 @@ string Value { get; init; }                              // A setting's value as
 bool Selected { get; init; }                             // Whether the row is the one the inputs act on
 bool Pending { get; init; }                              // Whether the value takes effect at the next start
 bool Overridden { get; init; }                           // Whether the environment holds the running value, the one shown being kept for the file
-bool ReadOnly { get; init; }                             // Whether the setting only reads, so the row shows its value and no input changes it
+bool ReadOnly { get; init; }                             // Whether the setting only reads, always or for now, so the row shows its value and no input changes it
 
 enum PanelRowKind                                        // What a row of the settings panel is
 Setting = 0,                                             // A setting, its value stepped with left and right

@@ -50,7 +50,8 @@ public enum PanelRowKind
 /// Whether the environment holds the running value, the one shown being kept for the file.
 /// </param>
 /// <param name="ReadOnly">
-/// Whether the setting only reads, so the row shows its value and no input changes it.
+/// Whether the setting only reads, always or for now, so the row shows its value and no input
+/// changes it.
 /// </param>
 public sealed record PanelRow(PanelRowKind Kind, string Label, string Value, bool Selected, bool Pending, bool Overridden, bool ReadOnly = false);
 
@@ -183,7 +184,8 @@ public sealed class PanelModel
             var entries = Entries();
             var selected = Selected;
             return entries.Select((entry, i) => entry.Target is Setting setting
-                ? new PanelRow(entry.Kind, entry.Label, setting.StoredText, i == selected, setting.PendingText is not null, setting.Overridden, setting.ReadOnly)
+                ? new PanelRow(entry.Kind, entry.Label, setting.StoredText, i == selected, setting.PendingText is not null, setting.Overridden,
+                    setting.ReadOnly || setting.Locked is not null)
                 : new PanelRow(entry.Kind, entry.Label, "", i == selected, false, false)).ToList();
         }
     }

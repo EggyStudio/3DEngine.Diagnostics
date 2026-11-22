@@ -199,6 +199,37 @@ public class SettingTests
     }
 
     [Fact]
+    public void A_Locked_Setting_Answers_Each_Set_With_The_Locks_Reason_Until_The_Lock_Lets_Go()
+    {
+        var registry = new Registry();
+        string? why = "The window is not shown.";
+        var taken = new List<int>();
+        var width = new Setting<int>("window.width", "The width.", 600, apply: value => { taken.Add(value); return null; })
+        {
+            Lock = () => why,
+            Low = 0,
+            High = 4096,
+            Step = 16,
+        };
+        registry.Add(width);
+
+        Assert.Equal("The window is not shown.", width.Locked);
+        Assert.False(width.ReadOnly);
+        var set = registry.Run("window.width 800");
+        Assert.Equal((Answer.NotSettable, "The window is not shown."), (set.Code, set.Text));
+        Assert.Equal(Answer.NotSettable, registry.Run("reset window.width").Code);
+        Assert.Equal(Answer.NotSettable, width.TryStart("800").Code);
+        Assert.Equal(Answer.NotSettable, width.Move(1).Code);
+        Assert.Equal("window.width is 600.", registry.Run("window.width").Text);
+        Assert.Empty(taken);
+
+        why = null;
+        Assert.Null(width.Locked);
+        Assert.Equal("window.width is 800.", registry.Run("window.width 800").Text);
+        Assert.Equal([800], taken);
+    }
+
+    [Fact]
     public void A_Setter_That_Refuses_Gives_Its_Reason_And_Leaves_The_Value_Where_It_Was()
     {
         var device = 32;

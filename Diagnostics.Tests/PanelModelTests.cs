@@ -159,6 +159,23 @@ public class PanelModelTests
     }
 
     [Fact]
+    public void A_Locked_Row_Shows_As_One_That_Only_Reads_And_Takes_Input_Again_Once_The_Lock_Lets_Go()
+    {
+        var registry = new Registry();
+        var shown = false;
+        registry.Add(new Setting<bool>("window.resizable", "Whether the window resizes.", true) { Lock = () => shown ? null : "The window is not shown." });
+        var panel = new PanelModel(registry);
+        Press(panel, PanelInput.Accept);
+        Assert.Equal([new PanelRow(PanelRowKind.Setting, "resizable", "on", true, false, false, ReadOnly: true)], panel.Rows);
+        Press(panel, PanelInput.Right);
+        Assert.Equal((Answer.NotSettable, "The window is not shown."), (panel.Answer?.Code, panel.Answer?.Text));
+
+        shown = true;
+        Press(panel, PanelInput.Right);
+        Assert.Equal([new PanelRow(PanelRowKind.Setting, "resizable", "off", true, false, false)], panel.Rows);
+    }
+
+    [Fact]
     public void A_Row_That_Only_Reads_Says_So_And_A_Refused_Value_Leaves_The_Row_Where_It_Was()
     {
         var registry = new Registry();
