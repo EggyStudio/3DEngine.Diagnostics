@@ -23,7 +23,7 @@ context. The overlay is drawn by the host from its model, with whatever text the
 | `CommandAttribute` | The mark a host's generator reads on a static method to add it as a command |
 | `Setting` and `Setting<T>` | A setting of a bool, an int, a float, a double, an enum or a string, its default, its range or choices, the host's getter and setter, whether it takes effect at the next start, and the environment variable that overrides it |
 | `SettingKind` | Whether a setting is a toggle, a whole number, a number, a choice or text |
-| `ConsoleModel` | A console's content with no drawing, a plain list of every line written, the line being entered with the candidates its start leaves, their selection and the ghost text, a line in and lines out, an event for each line kept, the history and a hint |
+| `ConsoleModel` | A console's content with no drawing, a plain list of every line written, the line being entered with the candidates its start leaves, their selection and the ghost text, a line in and lines out, an event for each line kept and one for each line run with its answer, the history and a hint |
 | `ConsoleLine` and `ConsoleLevel` | A line a console shows, whether it was entered, plain, a warning or an error, which a drawer colors it by, how many times a host wrote it in a row, its number in the stream and the host's stamp |
 | `OverlayModel`, `OverlayPlace` and `FrameStats` | The debug overlay's content with no drawing, named sections of lines a host fills in four places, asked four times a second, the last 240 frames' times and their statistics, the last, the average and the 1% low |
 | `PanelModel`, `PanelPage`, `PanelRow`, `PanelRowKind` and `PanelInput` | The settings panel's content with no drawing, a page for each first word of the settings' names and a host's own pages of settings, actions and text, steered by up, down, left, right, accept and back |
@@ -137,6 +137,10 @@ It stands on these conventions.
   The constructor takes a function the host gives, its frame's number, which stamps each line as
   `ConsoleLine.Stamp`, the latest writing's where a line repeats, and `ConsoleLine.Index` numbers
   each line in the stream.
+- A host that logs the failures of the lines a player typed subscribes to `ConsoleModel.LineRun`,
+  which is raised by `Submit` and by `Enter`, and so by a drawn console, with the line as entered
+  and its `Answer`, whose `Error` carries the exception of a command that threw. It is raised on the
+  thread that ran the line, after the line's echo and answer are written.
 - A failure's code is capitals with underscores. The module's own are `NO_SUCH_COMMAND`,
   `BAD_ARGUMENT`, `OUT_OF_RANGE` and `FAILED`, and a host's command gives its own through
   `Answer.Fail`.

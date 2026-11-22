@@ -185,6 +185,49 @@ public class ConsoleModelTests
     }
 
     [Fact]
+    public void A_Line_Run_Is_Told_With_Its_Answer_Whether_Submitted_Or_Entered_And_Failures_Carry_Their_Exception()
+    {
+        var (console, registry) = Make();
+        registry.Add(new Command("render.boom", "Throws.", "render.boom", _ => throw new InvalidOperationException("No world is lent.")));
+        var run = new List<(string Line, string? Code, bool Thrown)>();
+        var order = new List<string>();
+        console.LineRun += (line, answer) =>
+        {
+            run.Add((line, answer.Code, answer.Error is InvalidOperationException));
+            order.Add(console.Lines()[^1].Text);
+        };
+
+        console.Submit("  render.shot ");
+        console.Typed = "render.boom";
+        console.Enter();
+        console.Submit("nothing");
+        console.Submit("   ");
+
+        // The entered line is told as it was trimmed, the blank line is no line run, and each is
+        // told after its echo and its answer are written.
+        Assert.Equal(
+            [("render.shot", null, false), ("render.boom", Answer.Failed, true), ("nothing", Answer.NoSuchCommand, false)],
+            run);
+        Assert.Equal(["two lines", "render.boom failed. No world is lent.", "No command and no setting is named nothing."], order);
+    }
+
+    [Fact]
+    public void A_Subscriber_Of_A_Line_Run_Is_Called_Outside_The_Lock_And_Its_Exception_Reaches_The_Caller()
+    {
+        var (console, _) = Make();
+        var answered = false;
+        console.LineRun += (_, _) =>
+        {
+            answered = Task.Run(() => console.Lines().Count).Wait(TimeSpan.FromSeconds(5));
+            throw new InvalidOperationException("The log file is full.");
+        };
+
+        Assert.Throws<InvalidOperationException>(() => console.Submit("render.shot"));
+        Assert.True(answered);
+        Assert.Equal(3, console.Lines().Count);
+    }
+
+    [Fact]
     public void The_Oldest_Lines_Are_Dropped_Past_The_Depth()
     {
         var console = new ConsoleModel(new Registry(), depth: 3);

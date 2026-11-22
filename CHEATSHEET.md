@@ -136,6 +136,7 @@ void Edit(string text);                                  // The player's edit of
 void Navigate(int direction);                            // Takes the up key, which is -1, or the down key, which is 1, and moves the popup's selection where the popup shows, past the last candidate to the first and back, else walks the history
 bool Accept();                                           // Fills the selected candidate in place of the word being typed, followed by a space, as the Tab key does, the first candidate where none is selected, and says whether there was one
 event Action<ConsoleLine, bool>? LineWritten;            // Raised for each line kept, with the line as it stands and whether it repeated the line before it, so a host writes every line to its log file, the lines the player entered and their answers among them
+event Action<string, Answer>? LineRun;                   // Raised when a line is run, with the line as it was entered and its answer, however it was entered, Submit or Enter, so a host sees the answer of a line typed into a drawn console, Error among it
 
 record struct ConsoleLine                                // One line a console shows
 ConsoleLine(string Text, ConsoleLevel Level, int Count = 1, long Index = 0, long Stamp = 0);

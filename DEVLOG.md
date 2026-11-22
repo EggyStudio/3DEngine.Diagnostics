@@ -10,6 +10,8 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 
 Commits that day
 
+- `2e95e02` DiagnosticKeys is disposable, taking out only the five settings it added and ending its
+  key handling, so a process that makes keys for one app after another adds a new set each time.
 - `7f84619` CommandLine.Text gives the rest as one text, with one pair of quotes around the whole
   rest taken off and its escaped quotes and backslashes undone, and the rest as typed where it is no
   such pair.

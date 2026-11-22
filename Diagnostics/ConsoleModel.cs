@@ -130,6 +130,20 @@ public sealed class ConsoleModel
     /// </remarks>
     public event Action<ConsoleLine, bool>? LineWritten;
 
+    /// <summary>
+    /// Raised when a line is run, with the line as it was entered and its answer, however it was
+    /// entered, <see cref="Submit"/> or <see cref="Enter"/>, so a host sees the answer of a line
+    /// typed into a drawn console, <see cref="Answer.Error"/> among it.
+    /// </summary>
+    /// <remarks>
+    /// It is raised on the thread that ran the line, after the line's echo and its answer are
+    /// written, and no lock is held, so a subscriber may read the console. A blank line is no line
+    /// run. A subscriber's exception is the host's, as that of <see cref="LineWritten"/> is, and it
+    /// reaches the caller of <see cref="Submit"/> or <see cref="Enter"/>, whose line is run and
+    /// written by then.
+    /// </remarks>
+    public event Action<string, Answer>? LineRun;
+
     /// <summary>Whether the console is shown, which the console's key turns over.</summary>
     public bool Open { get; set; }
 
@@ -287,15 +301,18 @@ public sealed class ConsoleModel
         Append(ConsoleLevel.Input, "> " + entered, byHost: false);
         var answer = _registry.Run(entered);
         if (answer.Text.Length > 0) Append(answer.Done ? ConsoleLevel.Info : ConsoleLevel.Error, answer.Text, byHost: false);
+        LineRun?.Invoke(entered, answer);
         return answer;
     }
 
     /// <summary>Runs the line being entered as the Enter key does, and empties it.</summary>
     public Answer Enter()
     {
-        var answer = Submit(_typed);
+        // The field is emptied first, so a subscriber of LineRun that throws leaves no line to run
+        // again.
+        var line = _typed;
         Replace("", edited: false);
-        return answer;
+        return Submit(line);
     }
 
     /// <summary>The player's edit of the line being entered, which shows the popup.</summary>
