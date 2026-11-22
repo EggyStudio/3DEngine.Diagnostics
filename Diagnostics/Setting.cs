@@ -73,8 +73,10 @@ public abstract class Setting
     /// the setting is set or shown.
     /// </summary>
     /// <remarks>
-    /// While it says so, the panel shows the row as one that only reads, and a set, a step, a reset
-    /// or a line of the settings file answers <see cref="Answer.NotSettable"/> with that reason.
+    /// While it says so, the panel shows the row as one that only reads, and a set, a step or a
+    /// reset answers <see cref="Answer.NotSettable"/> with that reason. A line of the settings file
+    /// is not applied then and is kept in the file as it stands, where the setting writes none of
+    /// its own.
     /// </remarks>
     public Func<string?>? Lock { get; init; }
 

@@ -162,7 +162,9 @@ It stands on these conventions.
 - A setting with `ReadOnly` shows its value and answers a set as `Answer.NotSettable`, and is never
   saved, never overridden by an environment variable and never pending a next start. A setting
   whose setter returns a reason answers `Answer.Refused` with it, and its value and the panel's row
-  stay where they were. A number refuses infinities as it does NaN, and a `uint` or `ulong` is
+  stay where they were. A setting whose `Setting.Lock` gives a reason reads as `ReadOnly` for as
+  long as it does, in the panel and to a set or a reset, which answer `Answer.NotSettable` with
+  the reason, and `SettingsFile` keeps its line unapplied. A number refuses infinities as it does NaN, and a `uint` or `ulong` is
   checked against its type's range, so its sentence reads `0 to` the type's largest.
 - A setting's environment variable, where it is set to a value the setting takes, gives the running
   value for the whole run. A set is then kept for the file alone, and `Setting.Overridden`, the

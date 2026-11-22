@@ -105,6 +105,35 @@ public sealed class SettingsFileTests : IDisposable
     }
 
     [Fact]
+    public void A_Line_Of_A_Locked_Setting_Is_Kept_In_The_File_Though_The_Lock_Refuses_It()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(File_)!);
+        File.WriteAllText(File_, "render.scale 1.5\nplayer.name Ada\n");
+        var (registry, scale, _, name, _) = Make();
+        registry.Remove("render.scale");
+        var locked = true;
+        scale = new Setting<float>("render.scale", "The share of the window's size a frame is drawn at.", 1)
+        {
+            Lock = () => locked ? "The window is not shown." : null,
+        };
+        registry.Add(scale);
+        var file = new SettingsFile(File_);
+
+        // The lock is no fault of the line, so nothing is told, and the setting stays as it was.
+        Assert.Empty(file.Read(registry));
+        Assert.Equal(1f, scale.Value);
+        name.TrySet("Grace");
+        Assert.True(file.Write(registry));
+        Assert.Equal("player.name Grace\nrender.scale 1.5\n", File.ReadAllText(File_));
+
+        // Once the lock lets go and the player sets the value, the setting writes its own line.
+        locked = false;
+        scale.TrySet(2f);
+        file.Write(registry);
+        Assert.Equal("player.name Grace\nrender.scale 2\n", File.ReadAllText(File_));
+    }
+
+    [Fact]
     public void A_Value_The_Environment_Overrides_Is_Not_Written_In_The_Stored_Ones_Place()
     {
         const string variable = "DIAGNOSTICS_TEST_FILE_SCALE";

@@ -20,7 +20,9 @@ namespace Diagnostics;
 /// A host reads the file once its settings are added and writes it as the player leaves the
 /// settings or the program ends, both on its own thread. The file keeps what a player set through
 /// the console, the panel or the file itself, <see cref="Setting.SavedText"/>, and never a value
-/// the program wrote through a getter.
+/// the program wrote through a getter. The line of a setting that is locked as the file is read
+/// is not applied, since the lock refuses it, nor is it told as a fault, and the file keeps it as
+/// it stands for as long as the setting is locked and holds no value of its own to write.
 /// </para>
 /// <para>
 /// A setting added to the registry after the read is given the value its line holds, as a start
@@ -97,7 +99,7 @@ public sealed class SettingsFile : IDisposable
             for (var i = 0; i < count; i++)
             {
                 var line = CommandLine.Parse(lines[i]);
-                if (registry.FindSetting(line.Name) is not { } setting)
+                if (registry.FindSetting(line.Name) is not { } setting || setting.Locked is not null)
                     _kept.Add((i + 1, lines[i]));
                 else if (Apply(setting, line, i + 1) is { } trouble)
                     refused.Add(trouble);
@@ -169,16 +171,19 @@ public sealed class SettingsFile : IDisposable
         {
             var text = new StringBuilder();
             foreach (var setting in registry.Settings)
-                if (setting.Saved && !setting.ReadOnly && setting.SavedText != setting.DefaultText)
+                if (Writes(setting))
                     text.Append(setting.Name).Append(' ').Append(CommandLine.Quote(setting.SavedText)).Append('\n');
 
-            // A kept line whose name a setting has taken since the read gives way to the setting.
+            // A kept line whose name a setting has taken since the read gives way to the setting,
+            // unless the setting is locked and holds no line of its own to give.
             foreach (var (_, line) in _kept)
-                if (registry.FindSetting(CommandLine.Parse(line).Name) is null)
+                if (registry.FindSetting(CommandLine.Parse(line).Name) is not { } setting || (setting.Locked is not null && !Writes(setting)))
                     text.Append(line).Append('\n');
             return text.ToString();
         }
     }
+
+    private static bool Writes(Setting setting) => setting.Saved && !setting.ReadOnly && setting.SavedText != setting.DefaultText;
 
     // A setting added after the read takes the line the file holds for it, as a start does, and
     // from then on a set of it writes the file.
@@ -188,7 +193,7 @@ public sealed class SettingsFile : IDisposable
         {
             if (_stopped) return;
             var at = _kept.FindIndex(kept => CommandLine.Parse(kept.Text).Name == setting.Name);
-            if (at >= 0)
+            if (at >= 0 && setting.Locked is null)
             {
                 var (number, text) = _kept[at];
                 _kept.RemoveAt(at);
