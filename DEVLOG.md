@@ -10,6 +10,9 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 
 Commits that day
 
+- `d4d298e` A line a host writes again in a row at Info, Warning or Error is kept once with a count
+  and every line carries its number in the stream, an entered line and its answer never collapse,
+  and the console shows the count in brackets after the text where it is over one.
 - `381fed2` The README binds a host in three named steps with a command that answers late and a
   generator shown from its source to its emission, and the example gains greet.later, which answers
   at once and writes its second line through the console from another thread.

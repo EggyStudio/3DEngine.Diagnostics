@@ -97,6 +97,29 @@ public sealed class ConsoleModel
         _depth = depth;
     }
 
+    /// <summary>
+    /// Raised for each line kept, with the line as it stands and whether it repeated the line
+    /// before it, so a host writes every line to its log file, the lines the player entered and
+    /// their answers among them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It is raised on the thread that wrote the line, after the lock is let go, so a subscriber
+    /// may read the console and the writing of other threads goes on meanwhile. The line of a
+    /// repeat has its <see cref="ConsoleLine.Count"/> as it stands after it. The lines of one
+    /// writing are raised in order, and the lines of two threads writing at once may be raised in
+    /// either order.
+    /// </para>
+    /// <para>
+    /// A subscriber's exception is the host's. It reaches the code that wrote the line, which
+    /// <see cref="Write(ConsoleLevel, string)"/> or <see cref="Submit"/> then does not finish,
+    /// after the line is kept, and the lines of that writing not yet raised are not raised. A
+    /// subscriber that writes to the console from inside the event raises the event again for its
+    /// own line, so it must not write a line that brings itself back.
+    /// </para>
+    /// </remarks>
+    public event Action<ConsoleLine, bool>? LineWritten;
+
     /// <summary>Whether the console is shown, which the console's key turns over.</summary>
     public bool Open { get; set; }
 
@@ -196,12 +219,14 @@ public sealed class ConsoleModel
     // it. The entered lines and the answers to them are kept as they come.
     private void Append(ConsoleLevel level, string text, bool byHost)
     {
+        var told = LineWritten is null ? null : new List<(ConsoleLine, bool)>();
         lock (_gate)
             foreach (var line in text.ReplaceLineEndings("\n").Split('\n'))
             {
                 var collapse = byHost && level != ConsoleLevel.Input;
-                if (collapse && _lastWritten && _lines.Last is { } last && last.Value.Text == line && last.Value.Level == level)
-                    last.Value = last.Value with { Count = last.Value.Count + 1 };
+                var repeated = collapse && _lastWritten && _lines.Last is { } last && last.Value.Text == line && last.Value.Level == level;
+                if (repeated)
+                    _lines.Last!.Value = _lines.Last.Value with { Count = _lines.Last.Value.Count + 1 };
                 else
                 {
                     _lines.AddLast(new ConsoleLine(line, level, Index: Written));
@@ -209,8 +234,13 @@ public sealed class ConsoleModel
                     _lastWritten = collapse;
                 }
 
+                told?.Add((_lines.Last!.Value, repeated));
                 Written++;
             }
+
+        // The subscribers hear of the lines once the lock is let go.
+        if (told is null || LineWritten is not { } raise) return;
+        foreach (var (line, repeated) in told) raise(line, repeated);
     }
 
     /// <summary>Every kept line, oldest first.</summary>

@@ -97,6 +97,56 @@ public class ConsoleModelTests
     }
 
     [Fact]
+    public void Each_Line_Kept_Is_Told_To_A_Subscriber_With_Whether_It_Repeated_The_Last_Entered_And_Answers_Too()
+    {
+        var (console, _) = Make();
+        var told = new List<(string Text, int Count, bool Repeated)>();
+        console.LineWritten += (line, repeated) => told.Add((line.Text, line.Count, repeated));
+
+        console.Write(ConsoleLevel.Warning, "cold");
+        console.Write(ConsoleLevel.Warning, "cold");
+        console.Write(ConsoleLevel.Info, "a\nb");
+        console.Submit("render.shot");
+
+        Assert.Equal(
+            [
+                ("cold", 1, false), ("cold", 2, true), ("a", 1, false), ("b", 1, false),
+                ("> render.shot", 1, false), ("written", 1, false), ("two lines", 1, false),
+            ],
+            told);
+    }
+
+    [Fact]
+    public void A_Subscriber_Is_Called_Outside_The_Lock_On_The_Writing_Thread()
+    {
+        var console = new ConsoleModel(new Registry());
+        var (called, answered, thread) = (0, false, -1);
+        console.LineWritten += (_, _) =>
+        {
+            called++;
+            thread = Environment.CurrentManagedThreadId;
+            // Another thread reads the lines while the subscriber runs, which waits for the lock if
+            // it is held.
+            answered = Task.Run(() => console.Lines().Count).Wait(TimeSpan.FromSeconds(5));
+        };
+
+        console.Write(ConsoleLevel.Info, "a");
+        Assert.True(answered);
+        Assert.Equal((1, Environment.CurrentManagedThreadId), (called, thread));
+    }
+
+    [Fact]
+    public void A_Subscribers_Exception_Reaches_The_Writer_After_The_Line_Is_Kept()
+    {
+        var console = new ConsoleModel(new Registry());
+        console.LineWritten += (_, _) => throw new InvalidOperationException("The log file is full.");
+
+        Assert.Throws<InvalidOperationException>(() => console.Write(ConsoleLevel.Info, "a"));
+        Assert.Equal(["a"], console.Lines().Select(line => line.Text));
+        Assert.Equal(1, console.Written);
+    }
+
+    [Fact]
     public void The_Oldest_Lines_Are_Dropped_Past_The_Depth()
     {
         var console = new ConsoleModel(new Registry(), depth: 3);
