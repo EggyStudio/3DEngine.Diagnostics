@@ -9,12 +9,12 @@ namespace Diagnostics;
 /// The console is a window across the top of the host's window, a plain list of every line, wrapped
 /// at the window's width so the list scrolls only vertically, a line written again in a row shown
 /// once with its count in brackets, a row of its own for the hint, and under it the field the line
-/// is entered in. The hint's row is there whether it holds a hint or not, so the list and the field
-/// keep their place as a hint comes and goes. While the model's popup shows, the candidates stand
-/// in a box under the field, as wide as the field, six rows at most with the selected one banded,
-/// and the ghost text follows what is typed in a dimmed color. Up and down move the selection or
-/// walk the history, Tab fills the selected candidate and Enter runs the line, all by the model,
-/// while the field has the keyboard.
+/// is entered in, which runs the window's whole width at its foot. The hint's row is there whether
+/// it holds a hint or not, so the list and the field keep their place as a hint comes and goes.
+/// While the model's popup shows, the candidates stand in a box under the field, as wide as the
+/// field, six rows at most with the selected one banded, and the ghost text follows what is typed
+/// in a dimmed color. Up and down move the selection or walk the history, Tab fills the selected
+/// candidate and Enter runs the line, all by the model, while the field has the keyboard.
 /// </para>
 /// <para>
 /// The box and the ghost are drawn on ImGui's foreground list, so they stand over the console
@@ -32,7 +32,7 @@ namespace Diagnostics;
 public sealed class ImGuiConsole(ConsoleModel model)
 {
     private const ImGuiWindowFlags Window = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize
-        | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoSavedSettings;
+        | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
     // Enter submits, and the callbacks let Tab and the arrows change the field's own text, which
     // a field that has the keyboard otherwise keeps over the string given to it.
@@ -44,6 +44,7 @@ public sealed class ImGuiConsole(ConsoleModel model)
     private string _given = "";
     private bool _pushed;
     private bool _wasOpen;
+    private Vector2 _padding;
 
     /// <summary>
     /// The share of the host's window's height the console takes, 0.4 by default.
@@ -69,23 +70,34 @@ public sealed class ImGuiConsole(ConsoleModel model)
         ImGui.SetNextWindowPos(Vector2.Zero, ImGuiCond.Always);
         ImGui.SetNextWindowSize(new Vector2(window.X, MathF.Round(window.Y * Math.Clamp(Height, 0.1f, 1f))), ImGuiCond.Always);
         using var look = NeutralLook.Push();
+
+        // The field runs the window's whole width at its foot, so the window has no padding under
+        // the field and no border over its edge, which would show as a line between the field and
+        // the popup. The padding is dropped at the bottom with the top given back by hand, and the
+        // style's is kept for the rest of the drawing.
+        _padding = ImGui.GetStyle().WindowPadding;
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(_padding.X, 0f));
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
         if (ImGui.Begin("Console##diagnostics", Window))
         {
             // The hint has a row of its own over the field, kept where there is no hint, so what
             // is typed moves neither the list nor the field.
+            ImGui.SetCursorPosY(_padding.Y);
             Lines();
             Answer(_model.Hint);
             Entry();
         }
 
         ImGui.End();
+        ImGui.PopStyleVar(2);
         _wasOpen = true;
     }
 
     private void Lines()
     {
         // The lines take what the window has left over the hint's row and the field.
-        var room = ImGui.GetContentRegionAvail().Y - ImGui.GetFrameHeightWithSpacing() - ImGui.GetTextLineHeightWithSpacing();
+        var room = ImGui.GetWindowHeight() - ImGui.GetCursorPosY() - ImGui.GetFrameHeight()
+            - ImGui.GetTextLineHeight() - 2f * ImGui.GetStyle().ItemSpacing.Y;
         if (ImGui.BeginChild("##lines", new Vector2(0f, MathF.Max(room, ImGui.GetTextLineHeight())), ImGuiChildFlags.None, ImGuiWindowFlags.None))
         {
             // A line wraps at the window's width, so the log scrolls only vertically and a
@@ -128,7 +140,8 @@ public sealed class ImGuiConsole(ConsoleModel model)
 
     private unsafe void Entry()
     {
-        ImGui.SetNextItemWidth(-1f);
+        ImGui.SetCursorPos(new Vector2(0f, ImGui.GetWindowHeight() - ImGui.GetFrameHeight()));
+        ImGui.SetNextItemWidth(ImGui.GetWindowWidth());
         if (!_wasOpen) ImGui.SetKeyboardFocusHere();
         var typed = _model.Typed;
         _pushed = typed != _given;
@@ -178,14 +191,14 @@ public sealed class ImGuiConsole(ConsoleModel model)
         var candidates = _model.Candidates;
         var rows = Math.Min(ConsoleModel.PopupRows, candidates.Count - _model.FirstVisible);
         var rowHeight = ImGui.GetTextLineHeight() + style.ItemSpacing.Y;
-        var height = rows * rowHeight + style.WindowPadding.Y;
+        var height = rows * rowHeight + _padding.Y;
         var box = (From: new Vector2(min.X, max.Y), To: new Vector2(max.X, max.Y + height));
 
         list.AddRectFilled(box.From, box.To, NeutralLook.U32(NeutralLook.Popup));
         for (var row = 0; row < rows; row++)
         {
             var index = _model.FirstVisible + row;
-            var top = box.From.Y + style.WindowPadding.Y / 2 + row * rowHeight;
+            var top = box.From.Y + _padding.Y / 2 + row * rowHeight;
             if (index == _model.SelectedIndex)
                 list.AddRectFilled(new Vector2(box.From.X + 1f, top), new Vector2(box.To.X - 1f, top + rowHeight), NeutralLook.U32(NeutralLook.Chosen));
             list.AddText(new Vector2(box.From.X + style.FramePadding.X, top + style.ItemSpacing.Y / 2), NeutralLook.U32(NeutralLook.Text), candidates[index]);

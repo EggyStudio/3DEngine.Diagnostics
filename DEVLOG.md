@@ -13,8 +13,15 @@ The console with its popup of six candidates open below the field, joined to it 
 one border and as wide, over the free part of the screen so the log above stays whole, the second
 candidate selected and the row for the answer line over the field empty, cut out on a white sheet.
 
+![](.github/assets/readings/2026-11-22-console-field-full-width.webp)
+The console with its field running the window's whole width at its foot, flush to the window's edges
+with no padding or border round it, the popup of six candidates open below it as wide, in one black,
+the answer line's row empty over the field, cut out on a white sheet.
+
 Commits that day
 
+- `918de6e` One panel is open at a time, the overlay, the settings panel, the console and any a host
+  joins, held by one state the keys carry.
 - `15414b1` The console opens its candidates below the field and keeps a row for the answer line
   above it.
 - `10bf95e` The settings file is disposed with a last write, after which it hears no registry event

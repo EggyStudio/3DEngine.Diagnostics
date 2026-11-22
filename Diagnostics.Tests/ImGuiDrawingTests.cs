@@ -521,9 +521,38 @@ public sealed class ImGuiDrawingTests
         // With it, the field and the popup's rows below the window are one shade, the box's
         // inside a single black over the console's ground and over the scene alike.
         var joined = Red(700, field[^1] - 4);
-        var popup = Red(700, 270 + 20);
+        // The selected row is banded, so the popup's black is the darkest of its first rows.
+        var popup = Enumerable.Range(270 + 2, 40).Min(y => Red(700, y));
         Assert.Equal(popup, joined);
         Assert.True(joined < alone, $"{joined} joined and {alone} alone");
+    }
+
+    [Fact]
+    public void The_Field_Runs_The_Windows_Whole_Width_At_Its_Foot_With_No_Padding_Or_Border_Round_It()
+    {
+        var registry = Make();
+        var console = new ConsoleModel(registry) { Open = true };
+        var drawn = new ImGuiConsole(console) { Height = 0.5f };
+        using var frames = new ImGuiFrames(960, 540);
+        void Draw() => drawn.Draw(frames.Size);
+        console.Submit("entity.count");
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+        int Red(int x, int y) => frames.Picture[(y * 960 + x) * 4];
+
+        // The window is 270 rows high, and the field's rows are darker than the log's ground.
+        var ground = Red(480, 100);
+        foreach (var y in new[] { 252, 260, 269 })
+        {
+            var inside = Red(480, y);
+            Assert.True(inside < ground, $"{inside} in row {y} against {ground}");
+            Assert.Equal(inside, Red(0, y));
+            Assert.Equal(inside, Red(959, y));
+        }
+
+        // The row under the window is the scene's, and the window has no scroll of its own.
+        Assert.Equal(255, Red(480, 271));
+        Assert.Equal(ground, Red(0, 100));
     }
 
     [Fact]

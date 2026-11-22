@@ -2,10 +2,10 @@
 
 # Diagnostics
 
-![The console with its popup of candidates below the field](.github/assets/readings/2026-11-22-item-8-console-popup.webp)
+![The console with its field across the window's width and its popup of candidates below](.github/assets/readings/2026-11-22-console-field-full-width.webp)
 
-The console as the ImGui library draws it, its popup of candidates open below the field and joined
-to it in one shade, the log above left whole.
+The console as the ImGui library draws it, its field across the window's whole width at the foot
+and its popup of candidates open below it, joined in one shade, the log above left whole.
 
 ![The settings panel on the page of the settings named render](.github/assets/readings/2026-11-21-item-4-panel-page.webp)
 
@@ -243,8 +243,8 @@ foreach (var key in host.KeysPressed) keys.KeyDown(key, typing: drawnConsole.Typ
 - The console is a window across the top, `ImGuiConsole.Height` of the host's window, 0.4 by
   default, holding a plain list of every line, colored by the line's level, a line a host wrote
   again in a row once with its count in brackets, a row of its own for the hint over the field, there
-  whether it holds a hint or not so the list and the field keep their place, and the field. Its
-  field takes the keyboard as the console opens.
+  whether it holds a hint or not so the list and the field keep their place, and the field, which
+  runs the window's whole width at its foot. Its field takes the keyboard as the console opens.
 - The popup of candidates opens below the field once the player edited, its upper edge the field's
   lower edge and as wide as the field, one border running round the two so they read as one box,
   its text starting where the typed text does, six rows at most with the selected one banded, and
