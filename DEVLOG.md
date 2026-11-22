@@ -10,6 +10,9 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 
 Commits that day
 
+- `4688279` The console raises LineRun with the line as entered and its answer from Submit and
+  Enter, after the echo and the answer are written and with no lock held, so a host logs the
+  failures of lines typed into a drawn console, and Enter empties the field before it runs the line.
 - `2e95e02` DiagnosticKeys is disposable, taking out only the five settings it added and ending its
   key handling, so a process that makes keys for one app after another adds a new set each time.
 - `7f84619` CommandLine.Text gives the rest as one text, with one pair of quotes around the whole

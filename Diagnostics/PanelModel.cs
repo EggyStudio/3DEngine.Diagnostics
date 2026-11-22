@@ -122,6 +122,17 @@ public sealed class PanelModel
     /// <summary>Whether the panel is shown, which the panel's key turns over.</summary>
     public bool Open { get; set; }
 
+    /// <summary>
+    /// Raised for each answer the panel gets, a setting's step or toggle and an action's line
+    /// alike, with the setting's name or the action's line and the answer, so a host logs what was
+    /// moved and the <see cref="Answer.Error"/> of an action that threw.
+    /// </summary>
+    /// <remarks>
+    /// It is raised on the host's thread, in <see cref="Press"/>, after <see cref="Answer"/> is
+    /// set. A subscriber's exception is the host's and reaches the caller of <see cref="Press"/>.
+    /// </remarks>
+    public event Action<string, Answer>? Answered;
+
     /// <summary>The host's own rows of the first page, under the pages of settings.</summary>
     public PanelPage Root { get; }
 
@@ -183,17 +194,17 @@ public sealed class PanelModel
                 else _path.RemoveAt(_path.Count - 1);
                 break;
             case PanelInput.Left or PanelInput.Right when at >= 0 && entries[at].Target is Setting setting:
-                Answer = setting.Move(input == PanelInput.Left ? -1 : 1);
+                Take(setting.Name, setting.Move(input == PanelInput.Left ? -1 : 1));
                 break;
             case PanelInput.Accept when at >= 0:
                 Select(at);
                 switch (entries[at].Target)
                 {
                     case Setting { Kind: SettingKind.Toggle or SettingKind.Choice } choice:
-                        Answer = choice.Move(1);
+                        Take(choice.Name, choice.Move(1));
                         break;
                     case string line:
-                        Answer = _registry.Run(line);
+                        Take(line, _registry.Run(line));
                         break;
                     case PanelPage page:
                         _path.Add((page, 0));
@@ -202,6 +213,12 @@ public sealed class PanelModel
 
                 break;
         }
+    }
+
+    private void Take(string name, Answer answer)
+    {
+        Answer = answer;
+        Answered?.Invoke(name, answer);
     }
 
     private void Select(int index)

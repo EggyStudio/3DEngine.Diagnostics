@@ -187,6 +187,7 @@ int Selected { get; }                                    // The index of the sel
 Answer? Answer { get; }                                  // What the last accept or step answered, a refusal's reason among it, or null before any
 IReadOnlyList<PanelRow> Rows { get; }                    // The shown page's rows
 void Press(PanelInput input);                            // Takes an input
+event Action<string, Answer>? Answered;                  // Raised for each answer the panel gets, a setting's step or toggle and an action's line alike, with the setting's name or the action's line and the answer, so a host logs what was moved and the Error of an action that threw
 
 class PanelPage                                          // A page of the settings panel, a title and the rows a host gives it
 PanelPage(string title);

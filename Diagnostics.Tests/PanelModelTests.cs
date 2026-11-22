@@ -87,6 +87,30 @@ public class PanelModelTests
     }
 
     [Fact]
+    public void Each_Answer_The_Panel_Gets_Is_Told_With_The_Name_Of_The_Setting_Or_The_Line_Of_The_Action()
+    {
+        var (panel, registry) = Make();
+        registry.Add(new Command("game.boom", "Throws.", "game.boom", _ => throw new InvalidOperationException("No world is lent.")));
+        panel.Root.AddAction("Boom", "game.boom").AddAction("Quit", "game.quit");
+        var told = new List<(string Name, string? Code, bool Thrown, string Text)>();
+        panel.Answered += (name, answer) => told.Add((name, answer.Code, answer.Error is not null, answer.Text));
+
+        // The render page, where accept turns a toggle over and right steps a number.
+        Press(panel, PanelInput.Down, PanelInput.Accept, PanelInput.Accept, PanelInput.Down, PanelInput.Down, PanelInput.Right);
+        Press(panel, PanelInput.Back, PanelInput.Down, PanelInput.Down, PanelInput.Accept, PanelInput.Down, PanelInput.Accept);
+
+        Assert.Equal(
+            [
+                ("render.meshlets", null, false, "render.meshlets is on at the next start."),
+                ("render.scale", null, false, "render.scale is 1.25."),
+                ("game.boom", Answer.Failed, true, "game.boom failed. No world is lent."),
+                ("game.quit", null, false, "Bye."),
+            ],
+            told);
+        Assert.Equal("Bye.", panel.Answer?.Text);
+    }
+
+    [Fact]
     public void A_Whole_Number_Steps_By_One_And_A_Text_Refuses_A_Step()
     {
         var (panel, _) = Make();
