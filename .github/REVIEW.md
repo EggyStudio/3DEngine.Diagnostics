@@ -115,6 +115,15 @@ documents, the skeleton, the design, the code, then the engines taking it.
     panel's ground and the popup's are the same color and opaque, and the README's panel capture is
     retaken over a bright ground.
 
+11. **An open console or settings panel holds all input.** With the settings panel open a pad's
+    stick or an arrow key that changes a row also reaches the program behind it, so a scene's own
+    controls move while a setting is switched. The core gives one answer a host reads each frame,
+    whether a panel that takes input is open, true for the console and the settings panel and for a
+    host's panel that joins as taking input, and false for the overlay, which only shows. A host
+    holds keyboard, pointer and pad from its program while it is true. The keys that open and close
+    the panels, hide the interface and take a picture still act. Tests hold the answer for each
+    panel alone, for none, and for the overlay, and the cheatsheet says it.
+
 ## Verdicts
 
 None yet.

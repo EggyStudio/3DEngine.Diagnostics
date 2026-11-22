@@ -297,4 +297,62 @@ public class DiagnosticKeysTests
         Assert.True(console.Open);
         Assert.False(panel.Open);
     }
+
+    [Fact]
+    public void Input_Is_Held_While_The_Console_Or_The_Panel_Is_Open_And_Not_For_None_Or_The_Overlay()
+    {
+        var (keys, _, overlay, panel, console) = Make();
+        Assert.False(keys.Panels.HoldsInput);
+
+        // The overlay only shows, so it holds nothing, with its detail or without.
+        Tap(keys, "F3");
+        Assert.True(overlay.Shown);
+        Assert.False(keys.Panels.HoldsInput);
+        keys.Take(KeyAction.Overlay, shift: true);
+        Assert.False(keys.Panels.HoldsInput);
+
+        // Each of the other two alone holds it, and closing it lets go.
+        Tap(keys, "F5");
+        Assert.True(panel.Open);
+        Assert.True(keys.Panels.HoldsInput);
+        Tap(keys, "F5");
+        Assert.False(keys.Panels.HoldsInput);
+        Tap(keys, "F4");
+        Assert.True(console.Open);
+        Assert.True(keys.Panels.HoldsInput);
+
+        // Moving from one to the overlay lets go, and the keys that open and close still act.
+        Tap(keys, "F3");
+        Assert.False(console.Open);
+        Assert.False(keys.Panels.HoldsInput);
+        Tap(keys, "F1");
+        Assert.True(keys.InterfaceHidden);
+        Tap(keys, "F4");
+        Assert.True(keys.Panels.HoldsInput);
+        keys.Panels.CloseAll();
+        Assert.False(keys.Panels.HoldsInput);
+    }
+
+    [Fact]
+    public void A_Panel_A_Host_Joins_Holds_Input_Only_Where_It_Joined_As_Taking_It()
+    {
+        var (keys, _, _, _, _) = Make();
+        bool menu = false, hud = false;
+        keys.Panels.Join("menu", () => menu, open => menu = open, takesInput: true);
+        keys.Panels.Join("hud", () => hud, open => hud = open);
+
+        keys.Panels.Show("hud");
+        Assert.Equal("hud", keys.Panels.Open);
+        Assert.False(keys.Panels.HoldsInput);
+        keys.Panels.Show("menu");
+        Assert.False(hud);
+        Assert.True(keys.Panels.HoldsInput);
+        keys.Panels.CloseAll();
+        Assert.False(keys.Panels.HoldsInput);
+
+        // Joining again by the name takes the new mark.
+        keys.Panels.Join("hud", () => hud, open => hud = open, takesInput: true);
+        keys.Panels.Show("hud");
+        Assert.True(keys.Panels.HoldsInput);
+    }
 }

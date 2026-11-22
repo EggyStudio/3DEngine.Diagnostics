@@ -10,7 +10,8 @@ namespace Diagnostics;
 /// given, named <see cref="OverlayName"/>, <see cref="PanelName"/> and <see cref="ConsoleName"/>.
 /// Opening one of them, by its key, by <see cref="DiagnosticKeys.Take"/> or by setting its
 /// <c>Open</c> or <c>Shown</c>, closes the others, and the same key again closes its own, so a host
-/// has no code of its own for it and reads <see cref="Open"/> to know which is open, or none.
+/// has no code of its own for it and reads <see cref="Open"/> to know which is open, or none, and
+/// <see cref="HoldsInput"/> to know whether the open one takes the program's input.
 /// The key that hides the interface and the key that takes a picture change nothing of it.
 /// </para>
 /// <para>
@@ -31,7 +32,9 @@ public sealed class OpenPanels
     /// <summary>The name the console joins by.</summary>
     public const string ConsoleName = "console";
 
-    private readonly List<(string Name, Func<bool> IsOpen, Action<bool> Set)> _panels = [];
+    private readonly List<Panel> _panels = [];
+    private readonly record struct Panel(string Name, Func<bool> IsOpen, Action<bool> Set, bool TakesInput);
+
     private string? _last;
     private bool _closing;
 
@@ -56,18 +59,36 @@ public sealed class OpenPanels
         }
     }
 
+    /// <summary>
+    /// Whether a panel that takes input is open, which a host reads each frame and holds keyboard,
+    /// pointer and pad from its program while it is true.
+    /// </summary>
+    /// <remarks>
+    /// It is true while the console or the settings panel is open and while a host's panel that
+    /// joined as taking input is, and false with none open and with the overlay open, which only
+    /// shows. The keys that open and close the panels, hide the interface and take a picture are
+    /// <see cref="DiagnosticKeys"/>' own and still act, the host passing them on whatever this
+    /// says.
+    /// </remarks>
+    public bool HoldsInput => _panels.Any(panel => panel.TakesInput && panel.IsOpen());
+
     /// <summary>Joins a panel, in the place of one of the same name where there is one.</summary>
     /// <param name="name">The panel's name.</param>
     /// <param name="isOpen">Says whether the panel is open.</param>
     /// <param name="set">Opens the panel for true and closes it for false.</param>
-    public void Join(string name, Func<bool> isOpen, Action<bool> set)
+    /// <param name="takesInput">
+    /// Whether the panel takes input while it is open, as a menu or a field does, so that
+    /// <see cref="HoldsInput"/> is true while it is. False, the default, is a panel that only
+    /// shows.
+    /// </param>
+    public void Join(string name, Func<bool> isOpen, Action<bool> set, bool takesInput = false)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentNullException.ThrowIfNull(isOpen);
         ArgumentNullException.ThrowIfNull(set);
         var at = _panels.FindIndex(panel => panel.Name == name);
-        if (at < 0) _panels.Add((name, isOpen, set));
-        else _panels[at] = (name, isOpen, set);
+        if (at < 0) _panels.Add(new Panel(name, isOpen, set, takesInput));
+        else _panels[at] = new Panel(name, isOpen, set, takesInput);
     }
 
     /// <summary>Opens a panel and closes the others.</summary>
@@ -124,7 +145,7 @@ public sealed class OpenPanels
         _last = opened.Name;
     }
 
-    private (string Name, Func<bool> IsOpen, Action<bool> Set) Find(string name)
+    private Panel Find(string name)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         var at = _panels.FindIndex(panel => panel.Name == name);

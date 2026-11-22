@@ -255,7 +255,8 @@ string ConsoleName = "console";                          // The name the console
 OpenPanels();
 IReadOnlyList<string> Names { get; }                     // The names of the panels joined, in the order they joined
 string? Open { get; }                                    // The name of the open panel, or null where none is open
-void Join(string name, Func<bool> isOpen, Action<bool> set);  // Joins a panel, in the place of one of the same name where there is one
+bool HoldsInput { get; }                                 // Whether a panel that takes input is open, which a host reads each frame and holds keyboard, pointer and pad from its program while it is true
+void Join(string name, Func<bool> isOpen, Action<bool> set, bool takesInput = false);  // Joins a panel, in the place of one of the same name where there is one
 void Show(string name);                                  // Opens a panel and closes the others
 bool Toggle(string name);                                // Closes an open panel and opens a closed one, which closes the others
 void CloseAll();                                         // Closes every panel, which leaves none open

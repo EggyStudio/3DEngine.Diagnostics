@@ -122,7 +122,7 @@ public sealed class DiagnosticKeys : IDisposable
         {
             _panel = value;
             if (value is null) return;
-            Panels.Join(OpenPanels.PanelName, () => value.Open, open => value.Open = open);
+            Panels.Join(OpenPanels.PanelName, () => value.Open, open => value.Open = open, takesInput: true);
             value.WhenOpened = () => Panels.Opened(OpenPanels.PanelName);
         }
     }
@@ -135,7 +135,7 @@ public sealed class DiagnosticKeys : IDisposable
         {
             _console = value;
             if (value is null) return;
-            Panels.Join(OpenPanels.ConsoleName, () => value.Open, open => value.Open = open);
+            Panels.Join(OpenPanels.ConsoleName, () => value.Open, open => value.Open = open, takesInput: true);
             value.WhenOpened = () => Panels.Opened(OpenPanels.ConsoleName);
         }
     }

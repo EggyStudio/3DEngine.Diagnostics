@@ -204,6 +204,12 @@ if (panel.Open && host.Pressed("Down")) panel.Press(PanelInput.Down);
   by its key or by setting its `Shown` or `Open`, and its key again closes its own. A host reads
   `DiagnosticKeys.Panels.Open` for the name of the open one, or null, and joins a panel of its own
   with `DiagnosticKeys.Panels.Join`, which then takes part. F1 and F2 change nothing of it.
+- An open console or panel holds all input. `DiagnosticKeys.Panels.HoldsInput` is true while the
+  console, the settings panel or a host's panel joined with `takesInput: true` is open, and false
+  with none open and with the overlay, which only shows. A host reads it each frame and holds
+  keyboard, pointer and pad from its program while it is true, so a stick or an arrow that changes
+  a row does not also move the scene. The keys of the five still reach `DiagnosticKeys`, which
+  opens and closes the panels, hides the interface and asks for a screenshot on any frame.
 - The screenshot is the host's. The keys raise `DiagnosticKeys.ScreenshotAsked`, and the host
   reads `DiagnosticKeys.InterfaceHidden` before it draws its interface.
 - The overlay holds one line of its own, the frame's rate and statistics at the head. Every other

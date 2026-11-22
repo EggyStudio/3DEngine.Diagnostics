@@ -26,6 +26,8 @@ where the old half-alpha ground read as gray, cut out with a title.
 
 Commits that day
 
+- `a9c9ff4` The settings panel now stands on the console popup's opaque black from the neutral look,
+  so it reads over a bright scene.
 - `7bef80b` The console opens on F4 and the settings panel on F5 by default, the two keys swapped.
 - `fb10049` The console's field runs the window's whole width at its foot, flush to the edges with
   no border over them.
