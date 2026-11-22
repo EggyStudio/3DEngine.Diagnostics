@@ -85,6 +85,7 @@ public sealed class ConsoleModel
     private readonly int _depth;
     private readonly Func<long>? _stamp;
     private bool _lastWritten;
+    private bool _open;
     private int _at;
     private string _draft = "";
     private string _typed = "";
@@ -144,8 +145,23 @@ public sealed class ConsoleModel
     /// </remarks>
     public event Action<string, Answer>? LineRun;
 
-    /// <summary>Whether the console is shown, which the console's key turns over.</summary>
-    public bool Open { get; set; }
+    /// <summary>
+    /// Whether the console is shown, which the console's key turns over.
+    /// Opening it closes the other panels where
+    /// <see cref="DiagnosticKeys"/> holds them, see <see cref="OpenPanels"/>.
+    /// </summary>
+    public bool Open
+    {
+        get => _open;
+        set
+        {
+            var opened = value && !_open;
+            _open = value;
+            if (opened) WhenOpened?.Invoke();
+        }
+    }
+
+    internal Action? WhenOpened { get; set; }
 
     /// <summary>
     /// How many lines were ever written, which a drawer compares to know that a line came.

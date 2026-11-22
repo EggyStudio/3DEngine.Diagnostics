@@ -37,6 +37,7 @@ context. The overlay is drawn by the host from its model, with whatever text the
 | `OverlayModel`, `OverlayPlace` and `FrameStats` | The debug overlay's content with no drawing, named sections of lines a host fills in four places, asked four times a second, the last 240 frames' times and their statistics, the last, the average and the 1% low |
 | `PanelModel`, `PanelPage`, `PanelRow`, `PanelRowKind` and `PanelInput` | The settings panel's content with no drawing, a page for each first word of the settings' names and a host's own pages of settings, actions and text, steered by up, down, left, right, accept and back, and an event for each answer it gets |
 | `DiagnosticKeys` and `KeyAction` | The five keys as text settings a player rebinds, F1 hiding the interface, F2 asking for a screenshot, F3 the overlay, F4 the panel and F5 the console, each taken on its key's release and never by a chord, and disposed to take the settings out |
+| `OpenPanels` | The rule that one panel is open at a time, the overlay, the settings panel, the console and any a host joins, and which one is open, which `DiagnosticKeys.Panels` holds so a host has no code of its own for it |
 | `ImGuiConsole` and `ImGuiPanel` | In `3DEngine.Diagnostics.ImGui`, the console and the settings panel drawn with Dear ImGui in a host's frame, the console's field with history, completion and a hint, the panel steered by ImGui's arrows, Enter, Escape and a pad |
 | `SettingsFile` | The settings kept across runs in one text file of name and value lines, only the values a player set that differ from their defaults, with unknown names kept, a line taken by a setting added after the start and written when that setting is set |
 
@@ -198,6 +199,10 @@ if (panel.Open && host.Pressed("Down")) panel.Press(PanelInput.Down);
 - An action is taken as its key comes up where no other key went down or was held meanwhile, so a
   chord holding one of the five keys stays the program's. A key whose name holds `Shift` is no
   other key, and Shift with the overlay's key turns the overlay's detail over.
+- One panel is open at a time. Opening the overlay, the panel or the console closes the other two,
+  by its key or by setting its `Shown` or `Open`, and its key again closes its own. A host reads
+  `DiagnosticKeys.Panels.Open` for the name of the open one, or null, and joins a panel of its own
+  with `DiagnosticKeys.Panels.Join`, which then takes part. F1 and F2 change nothing of it.
 - The screenshot is the host's. The keys raise `DiagnosticKeys.ScreenshotAsked`, and the host
   reads `DiagnosticKeys.InterfaceHidden` before it draws its interface.
 - The overlay holds one line of its own, the frame's rate and statistics at the head. Every other

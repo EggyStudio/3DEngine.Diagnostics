@@ -52,6 +52,7 @@ public sealed class OverlayModel
     private readonly List<(string Name, OverlayPlace Place, Func<IEnumerable<string>> Lines, bool Detail)> _sections = [];
     private readonly Dictionary<OverlayPlace, List<string>> _lines = [];
     private readonly float[] _times = new float[StripFrames];
+    private bool _shown;
     private int _count;
     private int _next;
     private double _since = double.PositiveInfinity;
@@ -59,8 +60,23 @@ public sealed class OverlayModel
     /// <summary>Makes an overlay holding its own section, <c>frame</c>.</summary>
     public OverlayModel() => AddSection("frame", OverlayPlace.Head, () => [FrameLine()]);
 
-    /// <summary>Whether the overlay is shown, which the overlay's key turns over.</summary>
-    public bool Shown { get; set; }
+    /// <summary>
+    /// Whether the overlay is shown, which the overlay's key turns over.
+    /// Showing it closes the other panels where
+    /// <see cref="DiagnosticKeys"/> holds them, see <see cref="OpenPanels"/>.
+    /// </summary>
+    public bool Shown
+    {
+        get => _shown;
+        set
+        {
+            var opened = value && !_shown;
+            _shown = value;
+            if (opened) WhenOpened?.Invoke();
+        }
+    }
+
+    internal Action? WhenOpened { get; set; }
 
     /// <summary>
     /// Whether the sections added as detail are shown too, which Shift with the overlay's key turns

@@ -15,6 +15,8 @@ candidate selected and the row for the answer line over the field empty, cut out
 
 Commits that day
 
+- `15414b1` The console opens its candidates below the field and keeps a row for the answer line
+  above it.
 - `10bf95e` The settings file is disposed with a last write, after which it hears no registry event
   and writes nothing.
 - `2d4343d` The console wraps its lines at the window's width and has no horizontal scrollbar.

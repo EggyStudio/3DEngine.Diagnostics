@@ -53,6 +53,9 @@ public sealed class DiagnosticKeys : IDisposable
 
     private readonly Registry _registry;
     private readonly Setting<string>[] _keys;
+    private readonly OverlayModel? _overlay;
+    private readonly PanelModel? _panel;
+    private readonly ConsoleModel? _console;
     private readonly HashSet<string> _held = new(StringComparer.OrdinalIgnoreCase);
     private string? _candidate;
     private bool _chord;
@@ -87,14 +90,55 @@ public sealed class DiagnosticKeys : IDisposable
                 _registry.Remove(key.Name);
     }
 
+    /// <summary>
+    /// The panels of the program and which of them is open, the overlay, the panel and the console
+    /// given to these keys and any a host joins, of which one is open at a time.
+    /// </summary>
+    public OpenPanels Panels { get; } = new();
+
     /// <summary>The overlay the overlay's key turns over, or null for none.</summary>
-    public OverlayModel? Overlay { get; init; }
+    public OverlayModel? Overlay
+    {
+        get => _overlay;
+        init
+        {
+            _overlay = value;
+            if (value is null) return;
+            Panels.Join(OpenPanels.OverlayName, () => value.Shown, open =>
+            {
+                value.Shown = open;
+                // The overlay alone hidden hides its detail with it.
+                if (!open) value.Detailed = false;
+            });
+            value.WhenOpened = () => Panels.Opened(OpenPanels.OverlayName);
+        }
+    }
 
     /// <summary>The panel the panel's key turns over, or null for none.</summary>
-    public PanelModel? Panel { get; init; }
+    public PanelModel? Panel
+    {
+        get => _panel;
+        init
+        {
+            _panel = value;
+            if (value is null) return;
+            Panels.Join(OpenPanels.PanelName, () => value.Open, open => value.Open = open);
+            value.WhenOpened = () => Panels.Opened(OpenPanels.PanelName);
+        }
+    }
 
     /// <summary>The console the console's key turns over, or null for none.</summary>
-    public ConsoleModel? Console { get; init; }
+    public ConsoleModel? Console
+    {
+        get => _console;
+        init
+        {
+            _console = value;
+            if (value is null) return;
+            Panels.Join(OpenPanels.ConsoleName, () => value.Open, open => value.Open = open);
+            value.WhenOpened = () => Panels.Opened(OpenPanels.ConsoleName);
+        }
+    }
 
     /// <summary>
     /// Whether the program's interface is hidden, which a host reads before it draws it.
@@ -164,17 +208,20 @@ public sealed class DiagnosticKeys : IDisposable
                 ScreenshotAsked?.Invoke();
                 break;
             case KeyAction.Overlay when Overlay is { } overlay:
-                if (shift) (overlay.Detailed, overlay.Shown) = (!overlay.Detailed, true);
-                else overlay.Shown = !overlay.Shown;
-                // The overlay alone hidden hides its detail with it.
-                if (!overlay.Shown) overlay.Detailed = false;
+                if (shift)
+                {
+                    overlay.Detailed = !overlay.Detailed;
+                    Panels.Show(OpenPanels.OverlayName);
+                }
+                else
+                    Panels.Toggle(OpenPanels.OverlayName);
                 overlay.Refresh();
                 break;
             case KeyAction.Panel when Panel is { } panel:
-                panel.Open = !panel.Open;
+                Panels.Toggle(OpenPanels.PanelName);
                 break;
             case KeyAction.Console when Console is { } console:
-                console.Open = !console.Open;
+                Panels.Toggle(OpenPanels.ConsoleName);
                 break;
         }
     }

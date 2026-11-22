@@ -104,12 +104,14 @@ public class DiagnosticKeysTests
         Assert.Equal(KeyAction.Panel, Tap(keys, "F4"));
         Assert.True(panel.Open);
 
-        // The overlay's key held with the panel's key is a chord, and neither is taken.
+        // The overlay's key held with the panel's key is a chord, and neither is taken, so the
+        // panel opened by its own key stays open and the overlay it closed stays closed.
         keys.KeyDown("F3");
         keys.KeyDown("F4");
         Assert.Null(keys.KeyUp("F4"));
         Assert.Null(keys.KeyUp("F3"));
-        Assert.True(overlay.Shown && panel.Open);
+        Assert.True(panel.Open);
+        Assert.False(overlay.Shown);
     }
 
     [Fact]
@@ -167,5 +169,132 @@ public class DiagnosticKeysTests
         keys.Take(KeyAction.HideInterface);
         Assert.True(keys.InterfaceHidden);
         Assert.Throws<ArgumentException>(() => new DiagnosticKeys(registry));
+    }
+
+    [Fact]
+    public void Opening_One_Of_The_Three_Closes_The_Other_Two_For_Each_Pair_And_The_Same_Key_Closes_Its_Own()
+    {
+        var (keys, _, overlay, panel, console) = Make();
+        bool[] Open() => [overlay.Shown, panel.Open, console.Open];
+        Assert.Null(keys.Panels.Open);
+
+        // Each of the three, then each of the others after it, so every ordered pair is held.
+        string[] names = [OpenPanels.OverlayName, OpenPanels.PanelName, OpenPanels.ConsoleName];
+        string[] open = ["F3", "F4", "F5"];
+        for (var first = 0; first < 3; first++)
+        for (var second = 0; second < 3; second++)
+        {
+            if (first == second) continue;
+            Tap(keys, open[first]);
+            Assert.Equal(names[first], keys.Panels.Open);
+            Tap(keys, open[second]);
+            Assert.Equal(names[second], keys.Panels.Open);
+            Assert.Equal([second == 0, second == 1, second == 2], Open());
+
+            // The same key again closes its own, and none is open.
+            Tap(keys, open[second]);
+            Assert.Equal([false, false, false], Open());
+            Assert.Null(keys.Panels.Open);
+        }
+    }
+
+    [Fact]
+    public void A_Panel_Set_Open_Directly_Closes_The_Others_And_Closing_It_Closes_Nothing_Else()
+    {
+        var (keys, _, overlay, panel, console) = Make();
+        console.Open = true;
+        panel.Open = true;
+        Assert.False(console.Open);
+        Assert.Equal(OpenPanels.PanelName, keys.Panels.Open);
+        overlay.Shown = true;
+        Assert.False(panel.Open);
+        console.Open = true;
+        Assert.False(overlay.Shown);
+
+        // Setting what is open open again leaves it, and closing it leaves none.
+        console.Open = true;
+        Assert.True(console.Open);
+        console.Open = false;
+        Assert.Null(keys.Panels.Open);
+    }
+
+    [Fact]
+    public void The_Overlays_Detail_Shows_The_Overlay_And_Closes_The_Others_And_Closing_The_Overlay_Ends_It()
+    {
+        var (keys, _, overlay, _, console) = Make();
+        Tap(keys, "F5");
+        keys.KeyDown("LeftShift");
+        Tap(keys, "F3");
+        keys.KeyUp("LeftShift");
+        Assert.True(overlay.Shown && overlay.Detailed);
+        Assert.False(console.Open);
+
+        // The console opened over it closes it, and its detail with it.
+        Tap(keys, "F5");
+        Assert.False(overlay.Shown || overlay.Detailed);
+    }
+
+    [Fact]
+    public void The_Key_That_Hides_The_Interface_And_The_Picture_Key_Change_Nothing_Of_What_Is_Open()
+    {
+        var (keys, _, _, panel, _) = Make();
+        var shots = 0;
+        keys.ScreenshotAsked += () => shots++;
+        Tap(keys, "F4");
+        Tap(keys, "F1");
+        Tap(keys, "F2");
+        Assert.True(panel.Open);
+        Assert.Equal(OpenPanels.PanelName, keys.Panels.Open);
+        Assert.True(keys.InterfaceHidden);
+        Assert.Equal(1, shots);
+        Tap(keys, "F1");
+        Assert.True(panel.Open);
+    }
+
+    [Fact]
+    public void A_Panel_A_Host_Joins_Takes_Part_In_The_Rule_As_The_Three_Do()
+    {
+        var (keys, _, overlay, panel, console) = Make();
+        var inventory = false;
+        keys.Panels.Join("inventory", () => inventory, open => inventory = open);
+        Assert.Equal([OpenPanels.OverlayName, OpenPanels.PanelName, OpenPanels.ConsoleName, "inventory"], keys.Panels.Names);
+
+        Tap(keys, "F5");
+        keys.Panels.Show("inventory");
+        Assert.True(inventory);
+        Assert.False(console.Open);
+        Assert.Equal("inventory", keys.Panels.Open);
+
+        Tap(keys, "F4");
+        Assert.True(panel.Open);
+        Assert.False(inventory);
+
+        // The host opened it another way and says so.
+        inventory = true;
+        keys.Panels.Opened("inventory");
+        Assert.False(panel.Open);
+        Assert.False(overlay.Shown);
+
+        Assert.True(keys.Panels.Toggle("inventory") is false);
+        Assert.Null(keys.Panels.Open);
+        Assert.True(keys.Panels.Toggle("inventory"));
+        keys.Panels.CloseAll();
+        Assert.False(inventory);
+        Assert.Null(keys.Panels.Open);
+        Assert.Throws<ArgumentException>(() => keys.Panels.Show("none"));
+    }
+
+    [Fact]
+    public void Keys_With_Some_Of_The_Three_Missing_Hold_The_Rule_Among_The_Ones_Given()
+    {
+        var registry = new Registry();
+        var (panel, console) = (new PanelModel(registry), new ConsoleModel(registry));
+        var keys = new DiagnosticKeys(registry) { Panel = panel, Console = console };
+        Assert.Equal([OpenPanels.PanelName, OpenPanels.ConsoleName], keys.Panels.Names);
+        keys.Take(KeyAction.Overlay);
+        keys.Take(KeyAction.Panel);
+        keys.Take(KeyAction.Console);
+        Assert.True(console.Open);
+        Assert.False(panel.Open);
     }
 }

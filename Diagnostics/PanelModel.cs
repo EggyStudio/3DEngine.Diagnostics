@@ -112,6 +112,7 @@ public sealed class PanelModel
 {
     private readonly Registry _registry;
     private readonly List<(PanelPage Page, int Selected)> _path = [];
+    private bool _open;
 
     /// <summary>Makes a panel over a registry's settings.</summary>
     /// <param name="registry">The registry.</param>
@@ -122,8 +123,23 @@ public sealed class PanelModel
         Root = new PanelPage(title);
     }
 
-    /// <summary>Whether the panel is shown, which the panel's key turns over.</summary>
-    public bool Open { get; set; }
+    /// <summary>
+    /// Whether the panel is shown, which the panel's key turns over.
+    /// Opening it closes the other panels where
+    /// <see cref="DiagnosticKeys"/> holds them, see <see cref="OpenPanels"/>.
+    /// </summary>
+    public bool Open
+    {
+        get => _open;
+        set
+        {
+            var opened = value && !_open;
+            _open = value;
+            if (opened) WhenOpened?.Invoke();
+        }
+    }
+
+    internal Action? WhenOpened { get; set; }
 
     /// <summary>
     /// Raised for each answer the panel gets, a setting's step or toggle and an action's line

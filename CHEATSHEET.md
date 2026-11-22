@@ -229,6 +229,7 @@ Back = 5,                                                // Back to the page bef
 
 class DiagnosticKeys                                     // The five keys as actions a player rebinds, each a text setting holding a key's name, and what they turn over
 DiagnosticKeys(Registry registry);                       // Makes the keys and adds their five settings to a registry
+OpenPanels Panels { get; }                               // The panels of the program and which of them is open, the overlay, the panel and the console given to these keys and any a host joins, of which one is open at a time
 OverlayModel? Overlay { get; init; }                     // The overlay the overlay's key turns over, or null for none
 PanelModel? Panel { get; init; }                         // The panel the panel's key turns over, or null for none
 ConsoleModel? Console { get; init; }                     // The console the console's key turns over, or null for none
@@ -246,6 +247,19 @@ Screenshot = 1,                                          // Asks the host for a 
 Overlay = 2,                                             // Shows and hides the debug overlay, with Shift its detail, F3 by default
 Panel = 3,                                               // Opens and closes the settings panel, F4 by default
 Console = 4,                                             // Opens and closes the console, F5 by default
+
+class OpenPanels                                         // The rule that one of a program's panels is open at a time, the debug overlay, the settings panel, the console and any a host adds, and which one it is
+string OverlayName = "overlay";                          // The name the debug overlay joins by
+string PanelName = "panel";                              // The name the settings panel joins by
+string ConsoleName = "console";                          // The name the console joins by
+OpenPanels();
+IReadOnlyList<string> Names { get; }                     // The names of the panels joined, in the order they joined
+string? Open { get; }                                    // The name of the open panel, or null where none is open
+void Join(string name, Func<bool> isOpen, Action<bool> set);  // Joins a panel, in the place of one of the same name where there is one
+void Show(string name);                                  // Opens a panel and closes the others
+bool Toggle(string name);                                // Closes an open panel and opens a closed one, which closes the others
+void CloseAll();                                         // Closes every panel, which leaves none open
+void Opened(string name);                                // Says that a panel was opened another way than Show, and closes the others
 
 class SettingsFile                                       // The settings kept across runs in one text file, a line for each setting whose value differs from its default
 SettingsFile(string path);                               // Makes the file at a path, which is read and written when asked
