@@ -94,6 +94,27 @@ public class RegistryTests
     }
 
     [Fact]
+    public void A_Throwing_Commands_Answer_Carries_The_Exception_And_No_Other_Answer_Does()
+    {
+        var registry = new Registry();
+        var fault = new InvalidOperationException("No world is lent.");
+        registry.Add(new Command("boom", "Throws.", "boom", _ => throw fault));
+        registry.Add(new Command("mine", "Fails with the host's code.", "mine", _ => Answer.Fail("NO_SUCH_ENTITY", "No entity 7.")));
+        registry.Add(new Setting<int>("a.n", "A number.", 1) { Low = 0, High = 3 });
+
+        Assert.Same(fault, registry.Run("boom").Error);
+        Assert.Null(registry.Run("mine").Error);
+        Assert.Null(registry.Run("nothing").Error);
+        Assert.Null(registry.Run("a.n 9").Error);
+        Assert.Null(registry.Run("a.n 2").Error);
+        Assert.Null(registry.Run("help").Error);
+
+        // Two answers of one text and code differ by their exceptions, which compare by reference.
+        Assert.NotEqual(registry.Run("boom"), new Answer("boom failed. No world is lent.", Answer.Failed, new InvalidOperationException("No world is lent.")));
+        Assert.Equal(registry.Run("boom"), new Answer("boom failed. No world is lent.", Answer.Failed, fault));
+    }
+
+    [Fact]
     public void A_Settings_Name_Reads_It_And_A_Value_After_It_Sets_It()
     {
         var registry = new Registry();

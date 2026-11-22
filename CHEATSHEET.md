@@ -53,9 +53,10 @@ string NoSuchCommand = "NO_SUCH_COMMAND";                // The code of a line w
 string BadArgument = "BAD_ARGUMENT";                     // The code of a word a command or a setting cannot read
 string OutOfRange = "OUT_OF_RANGE";                      // The code of a number outside a setting's range
 string Failed = "FAILED";                                // The code of a command whose run threw
-Answer(string Text, string? Code = null);
+Answer(string Text, string? Code = null, Exception? Error = null);
 string Text { get; init; }                               // What a console shows, one line or several
 string? Code { get; init; }                              // The failure's code in capitals, as BAD_ARGUMENT, which a script reads, or null where the line was done
+Exception? Error { get; init; }                          // The exception a command threw, which Run sets where it answers with Failed, and null in every other answer
 bool Done { get; }                                       // Whether the line was done, which it was where there is no code
 Answer Fail(string code, string text);                   // An answer that failed with a code and its reason
 

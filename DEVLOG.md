@@ -10,6 +10,8 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 
 Commits that day
 
+- `10a18e1` The console takes a stamp function from the host, its frame number, and every line
+  carries the stamp of its latest writing as ConsoleLine.Stamp, 0 where there is no function.
 - `1675fe2` The console raises LineWritten for each line it keeps, with the line as it stands and
   whether it repeated the one before, on the writing thread after the lock is let go, so a host
   writes every line to its log file.

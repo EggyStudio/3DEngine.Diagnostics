@@ -9,7 +9,14 @@ namespace Diagnostics;
 /// The failure's code in capitals, as <c>BAD_ARGUMENT</c>, which a script reads, or null where the
 /// line was done.
 /// </param>
-public sealed record Answer(string Text, string? Code = null)
+/// <param name="Error">
+/// The exception a command threw, which <see cref="Registry.Run"/> sets where it answers with
+/// <see cref="Answer.Failed"/>, and null in every other answer. It is for the host's log, with its
+/// stack, and is not shown to a player, whose console shows <paramref name="Text"/>. Two answers
+/// compare it by reference, as an exception is compared, so two failures of the same text are equal
+/// only where one exception is carried by both.
+/// </param>
+public sealed record Answer(string Text, string? Code = null, Exception? Error = null)
 {
     /// <summary>The code of a line whose first word names no command and no setting.</summary>
     public const string NoSuchCommand = "NO_SUCH_COMMAND";

@@ -109,7 +109,8 @@ public sealed class Registry
     /// <summary>Runs a line, a command or the reading or setting of a setting.</summary>
     /// <remarks>
     /// A command that throws answers with <see cref="Answer.Failed"/> and the exception's message,
-    /// so one fault ends no console. A blank line answers with no text.
+    /// so one fault ends no console, and the answer carries the exception as
+    /// <see cref="Answer.Error"/> for a host to log. A blank line answers with no text.
     /// </remarks>
     /// <param name="line">The line as typed.</param>
     public Answer Run(string line)
@@ -125,7 +126,7 @@ public sealed class Registry
                 }
                 catch (Exception error) when (error is not OutOfMemoryException)
                 {
-                    return Answer.Fail(Answer.Failed, $"{command.Name} failed. {error.Message}");
+                    return Answer.Fail(Answer.Failed, $"{command.Name} failed. {error.Message}") with { Error = error };
                 }
             case Setting setting when parsed.Rest.Length == 0:
                 return new Answer(setting.Describe());
