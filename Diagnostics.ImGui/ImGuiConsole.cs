@@ -114,7 +114,14 @@ public sealed class ImGuiConsole(ConsoleModel model)
         if (!_wasOpen) ImGui.SetKeyboardFocusHere();
         var typed = _model.Typed;
         _pushed = typed != _given;
-        if (ImGui.InputTextWithHint("##typed", "Enter a command or a setting", ref typed, 512, Field, Edit))
+        // The field takes the popup's black while the popup shows, so the box they make is one
+        // shade. It follows the popup a frame late, as the field is drawn before the keys of the
+        // frame change what the popup shows.
+        var joined = _model.PopupShown;
+        if (joined) NeutralLook.PushJoined();
+        var entered = ImGui.InputTextWithHint("##typed", "Enter a command or a setting", ref typed, 512, Field, Edit);
+        if (joined) NeutralLook.PopJoined();
+        if (entered)
         {
             _model.Enter();
             // Enter takes the keyboard from the field, which the next line needs again.

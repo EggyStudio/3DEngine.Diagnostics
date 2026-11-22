@@ -2,6 +2,15 @@
 
 # Diagnostics
 
+![The console with its popup of candidates and the ghost text](.github/assets/readings/2026-11-21-item-4-console-popup.webp)
+
+The console as the ImGui library draws it, its popup of candidates joined to the field in one
+shade and the ghost text after what is typed.
+
+![The settings panel on the page of the settings named render](.github/assets/readings/2026-11-21-item-4-panel-page.webp)
+
+The settings panel on the page of the settings named render, one row selected.
+
 Diagnostics is a library an engine takes as a git submodule, for what a developer and a player
 reach at the keyboard, console commands and settings in one registry, and the content of the
 console, the debug overlay and the settings panel as plain data a host draws. It references no
@@ -216,8 +225,6 @@ drawnPanel.Draw(host.WindowSize);
 foreach (var key in host.KeysPressed) keys.KeyDown(key, typing: drawnConsole.Typing);
 ```
 
-![The console with its popup of candidates and the ghost text](.github/assets/readings/2026-11-21-item-4-console-popup.webp)
-
 - The console is a window across the top, `ImGuiConsole.Height` of the host's window, 0.4 by
   default, holding a plain list of every line, colored by the line's level, a line a host wrote
   again in a row once with its count in brackets, the field and the hint under it. Its field takes
@@ -233,8 +240,6 @@ foreach (var key in host.KeysPressed) keys.KeyDown(key, typing: drawnConsole.Typ
 - The candidates are the names of commands and settings that begin with the word and then those
   with a later dotted part that does, so `vsync` offers `render.vsync` and Tab fills it. After a
   setting's name they are its choices.
-
-![The settings panel on the page of the settings named render](.github/assets/readings/2026-11-21-item-4-panel-page.webp)
 
 - The panel is a window in the middle, sized to its rows, which ImGui measures in the first frame
   and draws from the second. With `ImGuiPanel.ReadsKeys`, the default, it reads the arrows, Enter

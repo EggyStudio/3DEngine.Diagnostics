@@ -79,6 +79,17 @@ internal static class NeutralLook
         return new Pushed();
     }
 
+    /// <summary>Pushes the popup's black for a field's ground, in all its states.</summary>
+    public static void PushJoined()
+    {
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, Popup);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, Popup);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Popup);
+    }
+
+    /// <summary>Pops what <see cref="PushJoined"/> pushed.</summary>
+    public static void PopJoined() => ImGui.PopStyleColor(3);
+
     /// <summary>A color as a drawing list takes it.</summary>
     /// <param name="color">The color.</param>
     public static uint U32(Vector4 color) => ImGui.ColorConvertFloat4ToU32(color);

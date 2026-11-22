@@ -10,6 +10,9 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 
 Commits that day
 
+- `96346c2` The popup of candidates joins the input field, its lower edge on the field's upper edge
+  with no gap, the same left and right edges, its text starting where the typed text does and one
+  border running round the two, and the console picture is retaken.
 - `7d0dce6` The drawn console and panel take the neutral look of the debug overlay, light gray text
   on black at half alpha with no hue and one palette of their own pushed around their drawing,
   warning and error lines keeping theirs, and the two pictures are retaken on a white sheet with a
@@ -45,9 +48,10 @@ The console as the ImGui library draws it with no device in the neutral look of 
 gray text on black at half alpha on a host theme that is blue, a plain list of every line with
 entered lines dimmed, a refused set in red and a host's warning in amber shown once with its count
 after a second writing, the popup of six candidates joined to the field, its lower edge on the
-field's upper edge and as wide, with one border round both and its text starting where the typed
-text does, the second selected, the ghost text nder.quality after the typed re, the window cut out
-on a white sheet with a title and no empty strip under the field.
+field's upper edge and as wide, the field in the popup's black so the box is one shade, with one
+border round both and its text starting where the typed text does, the second selected, the ghost
+text nder.quality after the typed re, the window cut out on a white sheet with a title and no empty
+strip under the field.
 
 ![](.github/assets/readings/2026-11-21-item-4-panel-page.webp)
 The settings panel in the same neutral look on the page of the settings named render, scale at 1.25

@@ -347,6 +347,35 @@ public sealed class ImGuiDrawingTests
     }
 
     [Fact]
+    public void The_Field_Takes_The_Popups_Black_While_The_Popup_Shows_And_Keeps_Its_Ground_Otherwise()
+    {
+        var registry = Make();
+        var console = new ConsoleModel(registry) { Open = true };
+        var drawn = new ImGuiConsole(console) { Height = 0.5f };
+        using var frames = new ImGuiFrames(960, 540);
+        void Draw() => drawn.Draw(frames.Size);
+        console.Submit("entity.count");
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+        int Red(int x, int y) => frames.Picture[(y * 960 + x) * 4];
+
+        // With no popup, the field is the half-alpha ground over the window's, the lighter of two.
+        var field = Enumerable.Range(4, 270 - 8).Where(y => Red(700, y) != Red(700, 100)).ToArray();
+        var alone = Red(700, field[^1] - 4);
+        Assert.True(alone > 0, $"{alone} for the field alone");
+
+        frames.Type("re", Draw);
+        frames.Frame(Draw);
+        Assert.True(console.PopupShown);
+
+        // With it, the popup's rows and the field's are one shade, the box's inside a single black.
+        var rows = Enumerable.Range(4, 270 - 8).Where(y => Red(700, y) != Red(700, 100)).ToArray();
+        var (popup, joined) = (Red(700, rows[0] + 2), Red(700, rows[^1] - 4));
+        Assert.Equal(popup, joined);
+        Assert.True(joined < alone, $"{joined} joined and {alone} alone");
+    }
+
+    [Fact]
     public void The_Console_Is_Drawn_With_Its_Popup_And_Ghost_For_A_Picture()
     {
         var registry = Make();
