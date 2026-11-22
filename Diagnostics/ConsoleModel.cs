@@ -33,7 +33,12 @@ public enum ConsoleLevel
 /// <see cref="ConsoleModel.Written"/> as it stood then, which does not change as the line repeats
 /// or as older lines are dropped, so a drawer keys what it measured of the line by it.
 /// </param>
-public readonly record struct ConsoleLine(string Text, ConsoleLevel Level, int Count = 1, long Index = 0);
+/// <param name="Stamp">
+/// What the host's stamp function gave as the line was last written, a frame's number as a host
+/// gives it, which a repeat moves to its latest writing, or 0 where the console has no such
+/// function.
+/// </param>
+public readonly record struct ConsoleLine(string Text, ConsoleLevel Level, int Count = 1, long Index = 0, long Stamp = 0);
 
 /// <summary>
 /// A console's content with no drawing, a plain list of every line written, the line being
@@ -78,6 +83,7 @@ public sealed class ConsoleModel
     private readonly LinkedList<ConsoleLine> _lines = new();
     private readonly List<string> _history = [];
     private readonly int _depth;
+    private readonly Func<long>? _stamp;
     private bool _lastWritten;
     private int _at;
     private string _draft = "";
@@ -90,11 +96,15 @@ public sealed class ConsoleModel
     /// <summary>Makes a console over a registry.</summary>
     /// <param name="registry">The commands and the settings its lines run.</param>
     /// <param name="depth">How many lines it keeps.</param>
-    public ConsoleModel(Registry registry, int depth = DefaultDepth)
+    /// <param name="stamp">
+    /// What a line is stamped with as it is written, as the host's frame number, called on the
+    /// writing thread before the console's lock is taken, or null for none, which stamps 0.
+    /// </param>
+    public ConsoleModel(Registry registry, int depth = DefaultDepth, Func<long>? stamp = null)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         ArgumentOutOfRangeException.ThrowIfLessThan(depth, 1);
-        _depth = depth;
+        (_depth, _stamp) = (depth, stamp);
     }
 
     /// <summary>
@@ -220,16 +230,18 @@ public sealed class ConsoleModel
     private void Append(ConsoleLevel level, string text, bool byHost)
     {
         var told = LineWritten is null ? null : new List<(ConsoleLine, bool)>();
+        // The host's function runs before the lock is taken, so it may read the console.
+        var stamp = _stamp?.Invoke() ?? 0;
         lock (_gate)
             foreach (var line in text.ReplaceLineEndings("\n").Split('\n'))
             {
                 var collapse = byHost && level != ConsoleLevel.Input;
                 var repeated = collapse && _lastWritten && _lines.Last is { } last && last.Value.Text == line && last.Value.Level == level;
                 if (repeated)
-                    _lines.Last!.Value = _lines.Last.Value with { Count = _lines.Last.Value.Count + 1 };
+                    _lines.Last!.Value = _lines.Last.Value with { Count = _lines.Last.Value.Count + 1, Stamp = stamp };
                 else
                 {
-                    _lines.AddLast(new ConsoleLine(line, level, Index: Written));
+                    _lines.AddLast(new ConsoleLine(line, level, Index: Written, Stamp: stamp));
                     if (_lines.Count > _depth) _lines.RemoveFirst();
                     _lastWritten = collapse;
                 }

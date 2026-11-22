@@ -114,7 +114,7 @@ Text = 4,                                                // Any text, a String
 class ConsoleModel                                       // A console's content with no drawing, a plain list of every line written, the line being entered with the candidates its start leaves, their selection and the ghost text, and the history, over a Registry
 int DefaultDepth = 2000;                                 // How many lines the console keeps by default, the oldest dropped first
 int PopupRows = 6;                                       // How many rows of candidates the popup shows at most
-ConsoleModel(Registry registry, int depth = 2000);       // Makes a console over a registry
+ConsoleModel(Registry registry, int depth = 2000, Func<long>? stamp = null);  // Makes a console over a registry
 bool Open { get; set; }                                  // Whether the console is shown, which the console's key turns over
 long Written { get; }                                    // How many lines were ever written, which a drawer compares to know that a line came
 IReadOnlyList<string> History { get; }                   // The lines entered, oldest first, a line entered twice in a row held once
@@ -136,11 +136,12 @@ bool Accept();                                           // Fills the selected c
 event Action<ConsoleLine, bool>? LineWritten;            // Raised for each line kept, with the line as it stands and whether it repeated the line before it, so a host writes every line to its log file, the lines the player entered and their answers among them
 
 record struct ConsoleLine                                // One line a console shows
-ConsoleLine(string Text, ConsoleLevel Level, int Count = 1, long Index = 0);
+ConsoleLine(string Text, ConsoleLevel Level, int Count = 1, long Index = 0, long Stamp = 0);
 string Text { get; init; }                               // The line's text, with no line end
 ConsoleLevel Level { get; init; }                        // What the line is
 int Count { get; init; }                                 // How many times the line was written in a row, 1 for one writing
 long Index { get; init; }                                // The number of lines written before the line's first writing, that is Written as it stood then, which does not change as the line repeats or as older lines are dropped, so a drawer keys what it measured of the line by it
+long Stamp { get; init; }                                // What the host's stamp function gave as the line was last written, a frame's number as a host gives it, which a repeat moves to its latest writing, or 0 where the console has no such function
 
 enum ConsoleLevel                                        // What a console's line is, which a console colors and filters by
 Input = 0,                                               // A line the player entered, shown again above its answer

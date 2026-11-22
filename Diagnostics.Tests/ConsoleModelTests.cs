@@ -147,6 +147,44 @@ public class ConsoleModelTests
     }
 
     [Fact]
+    public void A_Line_Is_Stamped_By_The_Hosts_Function_And_A_Repeat_Takes_The_Latest_Stamp()
+    {
+        long frame = 10;
+        var console = new ConsoleModel(new Registry(), stamp: () => frame);
+        var told = new List<long>();
+        console.LineWritten += (line, _) => told.Add(line.Stamp);
+
+        console.Write(ConsoleLevel.Warning, "cold");
+        frame = 12;
+        console.Write(ConsoleLevel.Warning, "cold");
+        console.Write(ConsoleLevel.Info, "a\nb");
+
+        // The first writing keeps its index and the repeat moves the stamp, and both lines of one
+        // writing share a stamp.
+        Assert.Equal([(0L, 12L), (2L, 12L), (3L, 12L)], console.Lines().Select(line => (line.Index, line.Stamp)));
+        Assert.Equal([10L, 12L, 12L, 12L], told);
+    }
+
+    [Fact]
+    public void A_Console_With_No_Stamp_Function_Stamps_Zero_And_The_Function_Is_Called_Outside_The_Lock()
+    {
+        var plain = new ConsoleModel(new Registry());
+        plain.Write(ConsoleLevel.Info, "a");
+        Assert.Equal(0, plain.Lines()[0].Stamp);
+
+        ConsoleModel? console = null;
+        var answered = false;
+        console = new ConsoleModel(new Registry(), stamp: () =>
+        {
+            answered = Task.Run(() => console!.Lines().Count).Wait(TimeSpan.FromSeconds(5));
+            return 1;
+        });
+        console.Write(ConsoleLevel.Info, "a");
+        Assert.True(answered);
+        Assert.Equal(1, console.Lines()[0].Stamp);
+    }
+
+    [Fact]
     public void The_Oldest_Lines_Are_Dropped_Past_The_Depth()
     {
         var console = new ConsoleModel(new Registry(), depth: 3);
