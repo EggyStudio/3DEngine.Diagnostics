@@ -71,7 +71,7 @@ public sealed class BindingTests : IDisposable
 
         // Its part run each frame, over four frames of keys.
         string[] none = [];
-        foreach (var (pressed, released) in new[] { (new[] { "F2", "F4" }, none), (none, ["F2", "F4"]), (["F4"], none), (none, ["F4"]) })
+        foreach (var (pressed, released) in new[] { (new[] { "F2", "F5" }, none), (none, ["F2", "F5"]), (["F5"], none), (none, ["F5"]) })
         {
             host.KeysPressed.Clear();
             host.KeysReleased.Clear();

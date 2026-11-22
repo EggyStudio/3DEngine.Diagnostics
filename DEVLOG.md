@@ -20,6 +20,8 @@ the answer line's row empty over the field, cut out on a white sheet.
 
 Commits that day
 
+- `fb10049` The console's field runs the window's whole width at its foot, flush to the edges with
+  no border over them.
 - `918de6e` One panel is open at a time, the overlay, the settings panel, the console and any a host
   joins, held by one state the keys carry.
 - `15414b1` The console opens its candidates below the field and keeps a row for the answer line

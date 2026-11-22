@@ -49,7 +49,7 @@ public class DiagnosticKeysTests
         Assert.Equal(["keys.panel"], registry.Settings.Select(setting => setting.Name));
 
         // A disposed set of keys turns nothing over, whatever key comes up.
-        Assert.Null(Tap(keys, "F5"));
+        Assert.Null(Tap(keys, "F4"));
         Assert.False(console.Open);
         keys.Take(KeyAction.Overlay);
         Assert.False(overlay.Shown);
@@ -62,7 +62,7 @@ public class DiagnosticKeysTests
         var shots = 0;
         keys.ScreenshotAsked += () => shots++;
         Assert.Equal(
-            ["keys.console F5", "keys.hide_interface F1", "keys.overlay F3", "keys.panel F4", "keys.screenshot F2"],
+            ["keys.console F4", "keys.hide_interface F1", "keys.overlay F3", "keys.panel F5", "keys.screenshot F2"],
             registry.Run("list keys.").Text.Split('\n'));
 
         Assert.Equal(KeyAction.HideInterface, Tap(keys, "F1"));
@@ -71,11 +71,11 @@ public class DiagnosticKeysTests
         Assert.Equal(1, shots);
         Assert.Equal(KeyAction.Overlay, Tap(keys, "F3"));
         Assert.True(overlay.Shown);
-        Assert.Equal(KeyAction.Panel, Tap(keys, "F4"));
+        Assert.Equal(KeyAction.Panel, Tap(keys, "F5"));
         Assert.True(panel.Open);
-        Assert.Equal(KeyAction.Console, Tap(keys, "F5"));
+        Assert.Equal(KeyAction.Console, Tap(keys, "F4"));
         Assert.True(console.Open);
-        Tap(keys, "F5");
+        Tap(keys, "F4");
         Assert.False(console.Open);
         Assert.Null(Tap(keys, "F6"));
     }
@@ -94,21 +94,21 @@ public class DiagnosticKeysTests
 
         // A key held before the bound key went down makes a chord as well.
         keys.KeyDown("LeftControl");
-        keys.KeyDown("F4");
-        Assert.Null(keys.KeyUp("F4"));
+        keys.KeyDown("F5");
+        Assert.Null(keys.KeyUp("F5"));
         keys.KeyUp("LeftControl");
         Assert.False(panel.Open);
 
         // The panel's key alone opens the panel, also right after the overlay's key.
         Tap(keys, "F3");
-        Assert.Equal(KeyAction.Panel, Tap(keys, "F4"));
+        Assert.Equal(KeyAction.Panel, Tap(keys, "F5"));
         Assert.True(panel.Open);
 
         // The overlay's key held with the panel's key is a chord, and neither is taken, so the
         // panel opened by its own key stays open and the overlay it closed stays closed.
         keys.KeyDown("F3");
-        keys.KeyDown("F4");
-        Assert.Null(keys.KeyUp("F4"));
+        keys.KeyDown("F5");
+        Assert.Null(keys.KeyUp("F5"));
         Assert.Null(keys.KeyUp("F3"));
         Assert.True(panel.Open);
         Assert.False(overlay.Shown);
@@ -141,7 +141,7 @@ public class DiagnosticKeysTests
     {
         var (keys, registry, _, _, console) = Make();
         Assert.True(registry.Run("keys.console `").Done);
-        Assert.Null(Tap(keys, "F5"));
+        Assert.Null(Tap(keys, "F4"));
         Assert.Equal(KeyAction.Console, Tap(keys, "`"));
         Assert.True(console.Open);
 
@@ -149,13 +149,13 @@ public class DiagnosticKeysTests
         // taken.
         Assert.Null(Tap(keys, "`", typing: true));
         Assert.True(console.Open);
-        Assert.Equal(KeyAction.Panel, Tap(keys, "F4", typing: true));
+        Assert.Equal(KeyAction.Panel, Tap(keys, "F5", typing: true));
 
         // An empty name binds no key.
         registry.Run("keys.panel \"\"");
-        Assert.Null(Tap(keys, "F4"));
+        Assert.Null(Tap(keys, "F5"));
         Assert.Equal("keys.console `\nkeys.panel \"\"\n", new SettingsFile("unused").Text(registry));
-        Assert.Equal("F4", keys.KeyOf(KeyAction.Panel).Default);
+        Assert.Equal("F5", keys.KeyOf(KeyAction.Panel).Default);
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public class DiagnosticKeysTests
 
         // Each of the three, then each of the others after it, so every ordered pair is held.
         string[] names = [OpenPanels.OverlayName, OpenPanels.PanelName, OpenPanels.ConsoleName];
-        string[] open = ["F3", "F4", "F5"];
+        string[] open = ["F3", "F5", "F4"];
         for (var first = 0; first < 3; first++)
         for (var second = 0; second < 3; second++)
         {
@@ -222,7 +222,7 @@ public class DiagnosticKeysTests
     public void The_Overlays_Detail_Shows_The_Overlay_And_Closes_The_Others_And_Closing_The_Overlay_Ends_It()
     {
         var (keys, _, overlay, _, console) = Make();
-        Tap(keys, "F5");
+        Tap(keys, "F4");
         keys.KeyDown("LeftShift");
         Tap(keys, "F3");
         keys.KeyUp("LeftShift");
@@ -230,7 +230,7 @@ public class DiagnosticKeysTests
         Assert.False(console.Open);
 
         // The console opened over it closes it, and its detail with it.
-        Tap(keys, "F5");
+        Tap(keys, "F4");
         Assert.False(overlay.Shown || overlay.Detailed);
     }
 
@@ -240,7 +240,7 @@ public class DiagnosticKeysTests
         var (keys, _, _, panel, _) = Make();
         var shots = 0;
         keys.ScreenshotAsked += () => shots++;
-        Tap(keys, "F4");
+        Tap(keys, "F5");
         Tap(keys, "F1");
         Tap(keys, "F2");
         Assert.True(panel.Open);
@@ -259,13 +259,13 @@ public class DiagnosticKeysTests
         keys.Panels.Join("inventory", () => inventory, open => inventory = open);
         Assert.Equal([OpenPanels.OverlayName, OpenPanels.PanelName, OpenPanels.ConsoleName, "inventory"], keys.Panels.Names);
 
-        Tap(keys, "F5");
+        Tap(keys, "F4");
         keys.Panels.Show("inventory");
         Assert.True(inventory);
         Assert.False(console.Open);
         Assert.Equal("inventory", keys.Panels.Open);
 
-        Tap(keys, "F4");
+        Tap(keys, "F5");
         Assert.True(panel.Open);
         Assert.False(inventory);
 

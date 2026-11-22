@@ -12,10 +12,10 @@ public enum KeyAction
     /// <summary>Shows and hides the debug overlay, with Shift its detail, F3 by default.</summary>
     Overlay,
 
-    /// <summary>Opens and closes the settings panel, F4 by default.</summary>
+    /// <summary>Opens and closes the settings panel, F5 by default.</summary>
     Panel,
 
-    /// <summary>Opens and closes the console, F5 by default.</summary>
+    /// <summary>Opens and closes the console, F4 by default.</summary>
     Console,
 }
 
@@ -47,8 +47,8 @@ public sealed class DiagnosticKeys : IDisposable
         (KeyAction.HideInterface, "keys.hide_interface", "F1", "The key that hides and shows the interface."),
         (KeyAction.Screenshot, "keys.screenshot", "F2", "The key that takes a screenshot."),
         (KeyAction.Overlay, "keys.overlay", "F3", "The key that shows and hides the debug overlay."),
-        (KeyAction.Panel, "keys.panel", "F4", "The key that opens and closes the settings panel."),
-        (KeyAction.Console, "keys.console", "F5", "The key that opens and closes the console."),
+        (KeyAction.Panel, "keys.panel", "F5", "The key that opens and closes the settings panel."),
+        (KeyAction.Console, "keys.console", "F4", "The key that opens and closes the console."),
     ];
 
     private readonly Registry _registry;

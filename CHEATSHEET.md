@@ -245,8 +245,8 @@ enum KeyAction                                           // What one of the five
 HideInterface = 0,                                       // Hides and shows the program's interface, F1 by default
 Screenshot = 1,                                          // Asks the host for a screenshot, F2 by default
 Overlay = 2,                                             // Shows and hides the debug overlay, with Shift its detail, F3 by default
-Panel = 3,                                               // Opens and closes the settings panel, F4 by default
-Console = 4,                                             // Opens and closes the console, F5 by default
+Panel = 3,                                               // Opens and closes the settings panel, F5 by default
+Console = 4,                                             // Opens and closes the console, F4 by default
 
 class OpenPanels                                         // The rule that one of a program's panels is open at a time, the debug overlay, the settings panel, the console and any a host adds, and which one it is
 string OverlayName = "overlay";                          // The name the debug overlay joins by
