@@ -78,6 +78,8 @@ bool Saved { get; init; }                                // Whether the settings
 bool ReadOnly { get; init; }                             // Whether the setting only reads, shown with its value and answering every set, step and reset as NotSettable
 Func<string?>? Lock { get; init; }                       // What says why the setting only reads for now, or null where it takes a set, asked each time the setting is set or shown
 string? Locked { get; }                                  // Why the setting only reads for now, or null where it takes a set or always only reads
+Func<IReadOnlyList<string>>? Offer { get; init; }        // What gives the choices a text setting offers, asked each time they are read, or null where it offers none
+bool InPanel { get; init; }                              // Whether the settings panel shows a row for the setting, which it does by default, and a setting set to false is read and set by the console and the settings file alone
 string? EnvironmentVariable { get; init; }               // The environment variable that overrides the value while it is set, or null for none
 bool Overridden { get; }                                 // Whether the environment gives the running value, EnvironmentVariable being set to a value the setting takes
 string? EnvironmentRefusal { get; }                      // Why the environment's value was refused, or null where it was taken or none is set
@@ -86,7 +88,7 @@ string DefaultText { get; }                              // The default as text
 string StoredText { get; }                               // The value the settings file keeps as text, the running one, or the one last set where the environment overrides it or it waits for the next start
 string SavedText { get; }                                // The value the settings file keeps as text, the one a player last set through the console, the panel or the file, or the default where none was
 string? PendingText { get; }                             // The value that takes effect at the next start as text, or null where none waits
-IReadOnlyList<string> Choices { get; }                   // The texts the value takes where they are few, an enum's names or off and on
+IReadOnlyList<string> Choices { get; }                   // The texts the value takes where they are few, an enum's names or off and on, or the ones a text setting's Offer gives at the time of the call
 string Takes { get; }                                    // What the value takes in words, its range or its choices, empty for any text
 Answer TrySet(string text);                              // Sets the value from text, or refuses it with its reason
 Answer TryStart(string text);                            // Sets the value from text as the program starts, so a value for the next start takes effect
@@ -109,7 +111,7 @@ string Text { get; }                                     // The running value as
 string DefaultText { get; }                              // The default as text
 string StoredText { get; }                               // The value the settings file keeps as text, the running one, or the one last set where the environment overrides it or it waits for the next start
 string SavedText { get; }                                // The value the settings file keeps as text, the one a player last set through the console, the panel or the file, or the default where none was
-IReadOnlyList<string> Choices { get; }                   // The texts the value takes where they are few, an enum's names or off and on
+IReadOnlyList<string> Choices { get; }                   // The texts the value takes where they are few, an enum's names or off and on, or the ones a text setting's Offer gives at the time of the call
 string Takes { get; }                                    // What the value takes in words, its range or its choices, empty for any text
 Answer TrySet(T value);                                  // Sets the value, or refuses one out of its range with its reason
 Answer Move(int direction);                              // Moves the value one step as a panel's left and right do, a toggle over, a choice to its neighbor past the last to the first, a number by its step held to its range
@@ -200,7 +202,7 @@ event Action<string, Answer>? Answered;                  // Raised for each answ
 class PanelPage                                          // A page of the settings panel, a title and the rows a host gives it
 PanelPage(string title);
 string Title { get; }                                    // The page's title
-PanelPage Add(Setting setting, string? label = null);    // Adds a setting's row
+PanelPage Add(Setting setting, string? label = null);    // Adds a setting's row, or nothing where the setting is not InPanel
 PanelPage AddAction(string label, string line);          // Adds a row that runs a command line on accept
 PanelPage AddPage(PanelPage page);                       // Adds a row that opens another page on accept
 PanelPage AddText(string text);                          // Adds a line of text

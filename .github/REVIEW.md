@@ -124,6 +124,19 @@ documents, the skeleton, the design, the code, then the engines taking it.
     the panels, hide the interface and take a picture still act. Tests hold the answer for each
     panel alone, for none, and for the overlay, and the cheatsheet says it.
 
+12. **A text setting that offers choices from a function.** A host has settings whose choices are
+    known only as the program runs, such as the sizes a screen lists beside a native choice, or a
+    few offered shares where any other may be typed. A choice setting takes an enum's names alone.
+    So a text setting gains an optional function giving its offered choices, asked for each time the
+    panel opens the row or the console completes the value. The panel shows them as a list to step
+    through with free entry beside it, the console completes them, and a value outside the list is
+    still passed to the setting's apply, which accepts or refuses it with its reason as any setting
+    does. The setting's help names the form it takes. A setting may also be marked as shown in no
+    panel row while the console still reads and sets it, where the module has no such mark yet.
+    Tests hold the list asked afresh each time, a typed value outside it applied, a refused value
+    leaving the setting as it was, and the unshown mark. The cheatsheet and the README follow, and
+    no host is named.
+
 ## Verdicts
 
 None yet.
@@ -220,3 +233,12 @@ Questions a host answers, held until reviewed.
 2. A late answer (`Hold`, `Later`) stays the host's, which writes it to the console. Agreed?
 3. F3 with F4 is a game's chord in two games. The release rule leaves chords to the host, so F4
    alone opens the panel and the chord stands. Is that the wanted reading?
+
+Item 12, done. `Setting.Offer`, a `Func<IReadOnlyList<string>>?` set at construction, gives a text
+setting's choices and is asked each time `Choices` is read, so the panel's step and the console's
+completion see the list as it stands. `Setting.InPanel`, a `bool` set at construction and true by
+default, leaves a setting out of the panel's pages while the console and the settings file read and
+set it. A value outside the offer reaches `apply`, which refuses it as `Answer.Refused` and leaves
+the setting as it was. The panel draws no text field, so free entry there is the console's, and a
+choice with a blank is stepped in the panel but not completed in the console. Disputed if a field
+is wanted in the panel.

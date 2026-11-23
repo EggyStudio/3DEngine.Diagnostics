@@ -6,6 +6,13 @@ kept under `.github/assets/readings` as WebP files named by their day, each on t
 says, and the notes written beside them as Markdown files named the same way. A line under Done
 names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit that closed it.
 
+## 2026-11-23
+
+Commits that day
+
+- `c8c2694` The settings file keeps the line of a setting a lock refuses, and the README says the
+  lock.
+
 ## 2026-11-22
 
 ![](.github/assets/readings/2026-11-22-item-8-console-popup.webp)

@@ -85,6 +85,26 @@ public abstract class Setting
     public string? Locked => ReadOnly ? null : Lock?.Invoke();
 
     /// <summary>
+    /// What gives the choices a text setting offers, asked each time they are read, or null where
+    /// it offers none.
+    /// </summary>
+    /// <remarks>
+    /// A host whose choices are known only as the program runs gives the list afresh, such as the
+    /// sizes a screen lists. The panel steps through them and the console completes them, and any
+    /// other text is still set, which the setting's apply accepts or refuses with its reason, so
+    /// the list is an offer and no limit. A choice with a blank is stepped in the panel and left
+    /// out of the console's completion, whose words split at blanks. The setting of another kind
+    /// has its own choices and takes no offer.
+    /// </remarks>
+    public Func<IReadOnlyList<string>>? Offer { get; init; }
+
+    /// <summary>
+    /// Whether the settings panel shows a row for the setting, which it does by default, and a
+    /// setting set to false is read and set by the console and the settings file alone.
+    /// </summary>
+    public bool InPanel { get; init; } = true;
+
+    /// <summary>
     /// The environment variable that overrides the value while it is set, or null for none.
     /// </summary>
     public string? EnvironmentVariable { get; init; }
@@ -128,8 +148,8 @@ public abstract class Setting
     /// </summary>
     public string? PendingText => AtNextStart && !ReadOnly && !Overridden && StoredText != Text ? StoredText : null;
 
-    /// <summary>The texts the value takes where they are few, an enum's names or off and
-    /// on.</summary>
+    /// <summary>The texts the value takes where they are few, an enum's names or off and on, or
+    /// the ones a text setting's <see cref="Offer"/> gives at the time of the call.</summary>
     public abstract IReadOnlyList<string> Choices { get; }
 
     /// <summary>What the value takes in words, its range or its choices, empty for any
@@ -210,6 +230,7 @@ public sealed class Setting<T> : Setting where T : notnull
     private readonly Func<T> _get;
     private readonly Func<T, string?> _set;
     private readonly object _gate = new();
+    private readonly string[] _fixed;
     private T _held;
     private T _stored;
     private bool _read;
@@ -251,7 +272,7 @@ public sealed class Setting<T> : Setting where T : notnull
             _set = get is null ? value => { _held = value; set(value); return null; } : value => { set(value); return null; };
         else
             _set = get is null ? value => Held(value, null) : _ => null;
-        Choices = Kind switch
+        _fixed = Kind switch
         {
             SettingKind.Toggle => ["off", "on"],
             SettingKind.Choice => Enum.GetNames(typeof(T)),
@@ -318,13 +339,13 @@ public sealed class Setting<T> : Setting where T : notnull
     public override string SavedText => Format(_stored);
 
     /// <inheritdoc/>
-    public override IReadOnlyList<string> Choices { get; }
+    public override IReadOnlyList<string> Choices => Kind == SettingKind.Text ? Offer?.Invoke() ?? [] : _fixed;
 
     /// <inheritdoc/>
     public override string Takes => Kind switch
     {
         SettingKind.Toggle or SettingKind.Choice => "one of " + string.Join(", ", Choices),
-        SettingKind.Text => "",
+        SettingKind.Text => Choices is { Count: > 0 } offered ? "any text, offered as " + string.Join(", ", offered) : "",
         _ when Unsigned => $"{Number(Math.Max(Low ?? 0, 0))} to {(High is { } high ? Number(high) : Limits().Max.ToString(CultureInfo.InvariantCulture))}",
         _ when Low is { } low && High is { } high => $"{Number(low)} to {Number(high)}",
         _ when Low is { } low => $"{Number(low)} or more",
@@ -349,6 +370,12 @@ public sealed class Setting<T> : Setting where T : notnull
             case SettingKind.Choice:
                 var at = Array.IndexOf(Enum.GetValues(typeof(T)), from);
                 return TrySet(Choices[(at + (up ? 1 : Choices.Count - 1)) % Choices.Count]);
+            case SettingKind.Text when Choices is { Count: > 0 } offered:
+                // A value the offer does not hold steps to the first choice up or the last down.
+                var here = -1;
+                for (var i = 0; i < offered.Count; i++)
+                    if (offered[i] == StoredText) here = i;
+                return TrySet(offered[here < 0 ? (up ? 0 : offered.Count - 1) : (here + (up ? 1 : offered.Count - 1)) % offered.Count]);
             case SettingKind.Text:
                 return Answer.Fail(Answer.BadArgument, $"{Name} is text, which no step changes.");
             case SettingKind.Whole:

@@ -409,7 +409,7 @@ public sealed class ConsoleModel
         if (_registry.FindSetting(words[0]) is { } setting)
             return words.Count == 1
                 ? setting.Choices.Where(choice => choice.StartsWith(word, StringComparison.OrdinalIgnoreCase)
-                    && !choice.Equals(word, StringComparison.OrdinalIgnoreCase)).ToList()
+                    && !choice.Equals(word, StringComparison.OrdinalIgnoreCase) && !choice.Contains(' ')).ToList()
                 : [];
         return _registry.FindCommand(words[0]) is { } command && words.Count <= command.Arguments.Count
             && command.Arguments[words.Count - 1].Kind == "name"

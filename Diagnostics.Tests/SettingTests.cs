@@ -199,6 +199,73 @@ public class SettingTests
     }
 
     [Fact]
+    public void A_Text_Setting_Asks_Its_Offer_Afresh_Each_Time_And_Takes_A_Value_Outside_It()
+    {
+        var registry = new Registry();
+        var sizes = new List<string> { "native", "1920x1080" };
+        var asked = 0;
+        var taken = new List<string>();
+        var size = new Setting<string>("window.size", "The window's size.", "native", apply: value =>
+        {
+            if (value.Contains('!')) return "A size has no mark.";
+            taken.Add(value);
+            return null;
+        })
+        {
+            Offer = () =>
+            {
+                asked++;
+                return sizes;
+            },
+        };
+        registry.Add(size);
+
+        Assert.Equal(["native", "1920x1080"], size.Choices);
+        sizes.Add("1280x720");
+        Assert.Equal(["native", "1920x1080", "1280x720"], size.Choices);
+        Assert.Equal(2, asked);
+        Assert.Contains("any text, offered as native, 1920x1080, 1280x720", registry.Run("help window.size").Text);
+
+        // A step goes to the next offered choice, wraps, and from a value outside the offer starts
+        // at its first up or its last down.
+        Assert.Equal("window.size is 1920x1080.", size.Move(1).Text);
+        size.Move(1);
+        Assert.Equal("1280x720", size.Text);
+        size.Move(1);
+        Assert.Equal("native", size.Text);
+        size.Move(-1);
+        Assert.Equal("1280x720", size.Text);
+        Assert.True(registry.Run("window.size 1000x700").Done);
+        Assert.Equal("1000x700", size.Text);
+        size.Move(-1);
+        Assert.Equal("1280x720", size.Text);
+        registry.Run("window.size 1000x700");
+        size.Move(1);
+        Assert.Equal("native", size.Text);
+
+        // A value outside the offer reaches apply, which refuses with its reason and leaves the
+        // setting as it was.
+        var refused = registry.Run("window.size big!");
+        Assert.Equal((Answer.Refused, "A size has no mark."), (refused.Code, refused.Text));
+        Assert.Equal("native", size.Text);
+        Assert.Equal(["1920x1080", "1280x720", "native", "1280x720", "1000x700", "1280x720", "1000x700", "native"], taken);
+    }
+
+    [Fact]
+    public void A_Text_Setting_With_No_Offer_Or_An_Empty_One_Has_No_Choices_And_No_Step()
+    {
+        var plain = new Setting<string>("player.name", "The name.", "Ada");
+        var empty = new Setting<string>("player.title", "The title.", "", () => "") { Offer = () => [] };
+        Assert.Empty(plain.Choices);
+        Assert.Equal("", plain.Takes);
+        Assert.Empty(empty.Choices);
+        Assert.Equal("", empty.Takes);
+        Assert.Equal(Answer.BadArgument, plain.Move(1).Code);
+        Assert.Equal(Answer.BadArgument, empty.Move(1).Code);
+        Assert.True(plain.InPanel);
+    }
+
+    [Fact]
     public void A_Locked_Setting_Answers_Each_Set_With_The_Locks_Reason_Until_The_Lock_Lets_Go()
     {
         var registry = new Registry();

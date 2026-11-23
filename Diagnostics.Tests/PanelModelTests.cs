@@ -176,6 +176,51 @@ public class PanelModelTests
     }
 
     [Fact]
+    public void A_Text_Row_With_An_Offer_Steps_Through_The_List_Asked_Afresh_On_Right_And_Accept()
+    {
+        var registry = new Registry();
+        var sizes = new List<string> { "native", "1920x1080" };
+        registry.Add(new Setting<string>("window.size", "The size.", "native") { Offer = () => sizes });
+        registry.Add(new Setting<string>("window.title", "The title.", "Game"));
+        var panel = new PanelModel(registry);
+        Press(panel, PanelInput.Accept);
+
+        Press(panel, PanelInput.Accept);
+        Assert.Equal("1920x1080", panel.Rows[0].Value);
+        sizes.Add("1280x720");
+        Press(panel, PanelInput.Right);
+        Assert.Equal("1280x720", panel.Rows[0].Value);
+        Press(panel, PanelInput.Left);
+        Assert.Equal("1920x1080", panel.Rows[0].Value);
+
+        // A text with no offer has no step, and accept leaves it be.
+        Press(panel, PanelInput.Down, PanelInput.Accept, PanelInput.Right);
+        Assert.Equal("Game", panel.Rows[1].Value);
+        Assert.Equal(Answer.BadArgument, panel.Answer?.Code);
+    }
+
+    [Fact]
+    public void A_Setting_Marked_Out_Of_The_Panel_Has_No_Row_While_The_Console_Still_Reads_And_Sets_It()
+    {
+        var registry = new Registry();
+        registry.Add(new Setting<int>("hidden.seed", "The seed.", 1) { InPanel = false });
+        registry.Add(new Setting<bool>("window.vsync", "Whether a frame waits.", true));
+        registry.Add(new Setting<int>("window.fps", "The frame rate.", 60) { InPanel = false });
+        var panel = new PanelModel(registry);
+        panel.Root.Add(registry.FindSetting("hidden.seed")!);
+
+        // A page whose settings are all out has no row, and the host's own add of one shows none.
+        Assert.Equal(["window"], panel.Rows.Where(row => row.Kind == PanelRowKind.Page).Select(row => row.Label));
+        Assert.Equal(PanelRowKind.Page, panel.Rows[0].Kind);
+        Press(panel, PanelInput.Accept);
+        Assert.Equal(["vsync"], panel.Rows.Select(row => row.Label));
+
+        Assert.Equal("window.fps is 60.", registry.Run("window.fps").Text);
+        Assert.Equal("window.fps is 30.", registry.Run("window.fps 30").Text);
+        Assert.Equal("hidden.seed is 9.", registry.Run("hidden.seed 9").Text);
+    }
+
+    [Fact]
     public void A_Row_That_Only_Reads_Says_So_And_A_Refused_Value_Leaves_The_Row_Where_It_Was()
     {
         var registry = new Registry();

@@ -64,11 +64,17 @@ public sealed class PanelPage(string title)
     /// <summary>The page's title.</summary>
     public string Title { get; } = title ?? throw new ArgumentNullException(nameof(title));
 
-    /// <summary>Adds a setting's row.</summary>
+    /// <summary>
+    /// Adds a setting's row, or nothing where the setting is not <see cref="Setting.InPanel"/>.
+    /// </summary>
     /// <param name="setting">The setting.</param>
     /// <param name="label">The row's words, the setting's name where none is given.</param>
-    public PanelPage Add(Setting setting, string? label = null) =>
-        With(PanelRowKind.Setting, label ?? (setting ?? throw new ArgumentNullException(nameof(setting))).Name, setting);
+    public PanelPage Add(Setting setting, string? label = null)
+    {
+        ArgumentNullException.ThrowIfNull(setting);
+        // A setting the panel is not to show has no row, whichever page it would stand on.
+        return setting.InPanel ? With(PanelRowKind.Setting, label ?? setting.Name, setting) : this;
+    }
 
     /// <summary>Adds a row that runs a command line on accept.</summary>
     /// <param name="label">The row's words.</param>
@@ -221,7 +227,8 @@ public sealed class PanelModel
                 Select(at);
                 switch (entries[at].Target)
                 {
-                    case Setting { Kind: SettingKind.Toggle or SettingKind.Choice } choice:
+                    case Setting choice when choice.Kind is SettingKind.Toggle or SettingKind.Choice
+                        || (choice.Kind == SettingKind.Text && choice.Choices.Count > 0):
                         Take(choice.Name, choice.Move(1));
                         break;
                     case string line:
@@ -264,7 +271,7 @@ public sealed class PanelModel
     {
         if (_path.Count > 0) return _path[^1].Page.Entries;
         var entries = new List<(PanelRowKind, string, object?)>();
-        foreach (var group in _registry.Settings.GroupBy(Group).OrderBy(group => group.Key, StringComparer.Ordinal))
+        foreach (var group in _registry.Settings.Where(setting => setting.InPanel).GroupBy(Group).OrderBy(group => group.Key, StringComparer.Ordinal))
         {
             // The page is made again each time, with the settings the registry holds then.
             var page = new PanelPage(group.Key);

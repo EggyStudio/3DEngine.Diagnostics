@@ -164,8 +164,17 @@ It stands on these conventions.
   whose setter returns a reason answers `Answer.Refused` with it, and its value and the panel's row
   stay where they were. A setting whose `Setting.Lock` gives a reason reads as `ReadOnly` for as
   long as it does, in the panel and to a set or a reset, which answer `Answer.NotSettable` with
-  the reason, and `SettingsFile` keeps its line unapplied. A number refuses infinities as it does NaN, and a `uint` or `ulong` is
-  checked against its type's range, so its sentence reads `0 to` the type's largest.
+  the reason, and `SettingsFile` keeps its line unapplied. A number refuses infinities as it does
+  NaN, and a `uint` or `ulong` is checked against its type's range, so its sentence reads `0 to`
+  the type's largest.
+- A text setting with `Setting.Offer` is given a function that lists its choices, asked afresh each
+  time the panel steps the row or the console completes the value, so a list known only as the
+  program runs stays current. The panel steps through them with left, right and accept, the console
+  completes them, and `help` names them. Any other text is still set and reaches the setting's
+  `apply`, which accepts it or refuses it with its reason as for any setting. A choice with a blank
+  is stepped but not completed, since the console's words split at blanks. A setting with
+  `InPanel` set to false has no row in the panel, on a page of the registry's or one a host adds,
+  while the console and the settings file read and set it.
 - A setting's environment variable, where it is set to a value the setting takes, gives the running
   value for the whole run. A set is then kept for the file alone, and `Setting.Overridden`, the
   setting's sentence and `list` say so.

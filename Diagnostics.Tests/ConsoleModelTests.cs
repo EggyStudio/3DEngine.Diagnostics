@@ -280,6 +280,32 @@ public class ConsoleModelTests
     }
 
     [Fact]
+    public void A_Text_Settings_Offer_Is_Asked_Afresh_As_The_Console_Completes_And_Free_Entry_Still_Runs()
+    {
+        var (console, registry) = Make();
+        var sizes = new List<string> { "native", "1920x1080", "two words" };
+        string? applied = null;
+        registry.Add(new Setting<string>("window.size", "The window's size.", "native", apply: value =>
+        {
+            applied = value;
+            return null;
+        })
+        { Offer = () => sizes });
+
+        console.Edit("window.size ");
+        Assert.Equal(["native", "1920x1080"], console.Candidates);
+        sizes.Add("1280x720");
+        console.Edit("window.size 1");
+        Assert.Equal(["1920x1080", "1280x720"], console.Candidates);
+        console.Edit("window.size 1920x1080");
+        Assert.Empty(console.Candidates);
+
+        // A value the offer does not hold is set all the same.
+        Assert.True(console.Submit("window.size 1000x700").Done);
+        Assert.Equal("1000x700", applied);
+    }
+
+    [Fact]
     public void A_Settings_Choices_And_A_Command_Argument_Of_The_Kind_Name_Complete_Too()
     {
         var (console, registry) = Make();
