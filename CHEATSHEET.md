@@ -80,6 +80,7 @@ Func<string?>? Lock { get; init; }                       // What says why the se
 string? Locked { get; }                                  // Why the setting only reads for now, or null where it takes a set or always only reads
 Func<IReadOnlyList<string>>? Offer { get; init; }        // What gives the choices a text setting offers, asked each time they are read, or null where it offers none
 bool InPanel { get; init; }                              // Whether the settings panel shows a row for the setting, which it does by default, and a setting set to false is read and set by the console and the settings file alone
+int? Order { get; init; }                                // Where the setting stands among the rows of its page in the settings panel, a whole number or null for none
 string? EnvironmentVariable { get; init; }               // The environment variable that overrides the value while it is set, or null for none
 bool Overridden { get; }                                 // Whether the environment gives the running value, EnvironmentVariable being set to a value the setting takes
 string? EnvironmentRefusal { get; }                      // Why the environment's value was refused, or null where it was taken or none is set

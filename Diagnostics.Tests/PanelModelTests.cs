@@ -221,6 +221,33 @@ public class PanelModelTests
     }
 
     [Fact]
+    public void A_Page_Lists_Settings_With_An_Order_First_By_It_And_By_Name_Among_Equals()
+    {
+        var registry = new Registry();
+        registry.Add(new Setting<bool>("window.fullscreen", "Whether it fills the screen.", false));
+        registry.Add(new Setting<bool>("window.vsync", "Whether a frame waits.", true) { Order = 2 });
+        registry.Add(new Setting<int>("window.fps", "The frame rate.", 60) { Order = 2 });
+        registry.Add(new Setting<int>("window.width", "The width.", 800) { Order = -1 });
+        registry.Add(new Setting<int>("window.height", "The height.", 600));
+        registry.Add(new Setting<int>("window.depth", "The depth.", 24) { Order = 10 });
+        var panel = new PanelModel(registry);
+        Press(panel, PanelInput.Accept);
+
+        // Order -1, then the two of 2 by name, then 10, then the ones with none by name.
+        Assert.Equal(["width", "fps", "vsync", "depth", "fullscreen", "height"], panel.Rows.Select(row => row.Label));
+
+        // The console's listing and completion stay by name, whatever the order.
+        Assert.Equal(
+            ["window.depth", "window.fps", "window.fullscreen", "window.height", "window.vsync", "window.width"],
+            registry.Settings.Select(setting => setting.Name));
+        var console = new ConsoleModel(registry);
+        console.Edit("window.");
+        Assert.Equal(
+            ["window.depth", "window.fps", "window.fullscreen", "window.height", "window.vsync", "window.width"],
+            console.Candidates);
+    }
+
+    [Fact]
     public void A_Row_That_Only_Reads_Says_So_And_A_Refused_Value_Leaves_The_Row_Where_It_Was()
     {
         var registry = new Registry();

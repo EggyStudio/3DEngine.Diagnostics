@@ -275,7 +275,10 @@ public sealed class PanelModel
         {
             // The page is made again each time, with the settings the registry holds then.
             var page = new PanelPage(group.Key);
-            foreach (var setting in group) page.Add(setting, setting.Name.Contains('.') ? setting.Name[(group.Key.Length + 1)..] : setting.Name);
+            // A setting with an order stands before one with none, by that number and then by name.
+            var listed = group.OrderBy(setting => setting.Order is null).ThenBy(setting => setting.Order)
+                .ThenBy(setting => setting.Name, StringComparer.Ordinal);
+            foreach (var setting in listed) page.Add(setting, setting.Name.Contains('.') ? setting.Name[(group.Key.Length + 1)..] : setting.Name);
             entries.Add((PanelRowKind.Page, group.Key, page));
         }
 

@@ -175,6 +175,9 @@ It stands on these conventions.
   is stepped but not completed, since the console's words split at blanks. A setting with
   `InPanel` set to false has no row in the panel, on a page of the registry's or one a host adds,
   while the console and the settings file read and set it.
+- A setting with `Setting.Order`, a whole number, stands before those with none on its page in the
+  panel, the lowest number at the top and settings of one number by name, so a host puts the row a
+  player reaches for first at the top. The console's listing and completion stay by name.
 - A setting's environment variable, where it is set to a value the setting takes, gives the running
   value for the whole run. A set is then kept for the file alone, and `Setting.Overridden`, the
   setting's sentence and `list` say so.

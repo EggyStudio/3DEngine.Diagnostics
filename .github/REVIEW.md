@@ -137,6 +137,13 @@ documents, the skeleton, the design, the code, then the engines taking it.
     leaving the setting as it was, and the unshown mark. The cheatsheet and the README follow, and
     no host is named.
 
+13. **A page's rows in an order the host gives.** A page lists its settings by name, so a host
+    cannot put the row a player reaches for first at the top. A setting gains an optional order, a
+    whole number, and a page lists its settings by that order first and by name among equals, a
+    setting with none standing after those that carry one. The console's listing and its completion
+    stay by name. Tests hold a page with mixed orders, equals falling back to the name, and the
+    console's listing unchanged. The cheatsheet and the README follow, and no host is named.
+
 ## Verdicts
 
 None yet.
@@ -242,3 +249,7 @@ set it. A value outside the offer reaches `apply`, which refuses it as `Answer.R
 the setting as it was. The panel draws no text field, so free entry there is the console's, and a
 choice with a blank is stepped in the panel but not completed in the console. Disputed if a field
 is wanted in the panel.
+
+Item 13, done. `Setting.Order`, an `int?` set at construction, puts a setting ahead of those with
+none on the page the registry makes for its group, by that number and then by name. The console's
+listing and completion stay by name, and a page a host builds lists its rows as they are added.

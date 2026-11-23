@@ -105,6 +105,18 @@ public abstract class Setting
     public bool InPanel { get; init; } = true;
 
     /// <summary>
+    /// Where the setting stands among the rows of its page in the settings panel, a whole number
+    /// or null for none.
+    /// </summary>
+    /// <remarks>
+    /// A page lists the settings that carry an order first, the lowest number at the top and
+    /// settings of one number by name, and those with none after them by name. Only the panel's
+    /// pages follow it, while the console's listing and completion stay by name, and a page a host
+    /// builds lists its rows as they are added.
+    /// </remarks>
+    public int? Order { get; init; }
+
+    /// <summary>
     /// The environment variable that overrides the value while it is set, or null for none.
     /// </summary>
     public string? EnvironmentVariable { get; init; }
