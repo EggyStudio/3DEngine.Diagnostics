@@ -11,7 +11,9 @@ namespace Diagnostics;
 /// directions, lower face button and right face button from ImGui's own keys, repeating a held
 /// direction, so a host that feeds ImGui its input feeds the panel, a pad's where its backend sets
 /// <c>ImGuiBackendFlags.HasGamepad</c>. The window is sized to its rows, which ImGui measures in
-/// the first frame and draws from the second. It draws in the neutral look of the console, its
+/// the first frame and draws from the second. A text setting that offers no list of values is
+/// edited in a text field in place of its value, which Enter sets and Escape puts away, the
+/// field taking the keyboard while it is open. It draws in the neutral look of the console, its
 /// palette pushed around the window and popped after, on the opaque black of the console's popup
 /// so it reads over a bright scene, and takes no color from the host's theme.
 /// <see cref="Draw"/> is called on the host's thread between the host's <c>NewFrame</c> and
@@ -34,6 +36,8 @@ public sealed class ImGuiPanel(PanelModel model)
     ];
 
     private readonly PanelModel _model = model ?? throw new ArgumentNullException(nameof(model));
+    private bool _fielded;
+    private int _opened;
 
     /// <summary>
     /// Whether the panel reads its six inputs from ImGui's keys while it is open, which it does by
@@ -48,8 +52,19 @@ public sealed class ImGuiPanel(PanelModel model)
     /// <param name="window">The host's window's size in ImGui's units.</param>
     public void Draw(Vector2 window)
     {
-        if (!_model.Open) return;
-        if (ReadsKeys && !ImGui.GetIO().WantTextInput)
+        if (!_model.Open)
+        {
+            _fielded = false;
+            return;
+        }
+
+        // A field that is open has the keyboard, and Escape is the one key the panel still reads.
+        if (ReadsKeys && _model.Editing is not null)
+        {
+            if (ImGui.IsKeyPressed(ImGuiKey.Escape, false) || ImGui.IsKeyPressed(ImGuiKey.GamepadFaceRight, false))
+                _model.Press(PanelInput.Back);
+        }
+        else if (ReadsKeys && !ImGui.GetIO().WantTextInput)
             foreach (var (key, pad, input, repeats) in Keys)
                 if (ImGui.IsKeyPressed(key, repeats) || ImGui.IsKeyPressed(pad, repeats))
                     _model.Press(input);
@@ -62,11 +77,14 @@ public sealed class ImGuiPanel(PanelModel model)
         ImGui.SetNextWindowSize(new Vector2(MathF.Min(Width, window.X), 0f), ImGuiCond.Always);
         using var look = NeutralLook.Push();
         NeutralLook.PushPopupGround();
+        // The window takes no mouse and no navigation, and a field takes the keyboard all the same.
         if (ImGui.Begin("Panel##diagnostics", Window))
         {
             ImGui.TextUnformatted(_model.Title);
             ImGui.Separator();
-            foreach (var row in rows) Row(row);
+            var fielded = false;
+            foreach (var row in rows) fielded |= Row(row);
+            _fielded = fielded;
             if (_model.Answer is { Done: false } refused)
             {
                 ImGui.Separator();
@@ -80,12 +98,13 @@ public sealed class ImGuiPanel(PanelModel model)
         NeutralLook.PopPopupGround();
     }
 
-    private static void Row(PanelRow row)
+    // Draws a row, and gives whether it holds the field of a text being edited.
+    private bool Row(PanelRow row)
     {
         if (row.Kind == PanelRowKind.Text)
         {
             ImGui.TextDisabled(row.Label);
-            return;
+            return false;
         }
 
         var value = row.Kind switch
@@ -108,10 +127,40 @@ public sealed class ImGuiPanel(PanelModel model)
                 from + new Vector2(width + 4f, ImGui.GetTextLineHeight() + 1f),
                 NeutralLook.U32(NeutralLook.Chosen));
         ImGui.TextUnformatted(row.Label);
+        if (row.Editing is { } typed)
+        {
+            Field(typed, width);
+            return true;
+        }
+
         if (value.Length > 0)
         {
             ImGui.SameLine(MathF.Max(0f, width - ImGui.CalcTextSize(value).X));
             ImGui.TextUnformatted(value);
         }
+
+        return false;
+    }
+
+    // The field takes the right half of the row and the keyboard in the frame it opens, its text
+    // selected so typing replaces it. Enter sets what it holds, a frame after it opened, so the
+    // Enter that opened it is not taken for the one that sets. Enter takes the keyboard from the
+    // field, which a refused text needs again, with its text left as it is to be mended.
+    private void Field(string typed, float width)
+    {
+        var size = width / 2f;
+        ImGui.SameLine(MathF.Max(0f, width - size));
+        ImGui.SetNextItemWidth(size);
+        // Each opening is a field of its own, so ImGui keeps no selection from the last.
+        if (!_fielded) _opened++;
+        if (!_fielded) ImGui.SetKeyboardFocusHere();
+        ImGui.PushID(_opened);
+        var flags = ImGuiInputTextFlags.EnterReturnsTrue | (_fielded ? ImGuiInputTextFlags.None : ImGuiInputTextFlags.AutoSelectAll);
+        var entered = ImGui.InputText("##field", ref typed, 512, flags);
+        ImGui.PopID();
+        if (typed != _model.Editing) _model.Edit(typed);
+        if (!entered || !_fielded) return;
+        _model.Press(PanelInput.Accept);
+        if (_model.Editing is not null) ImGui.SetKeyboardFocusHere(-1);
     }
 }

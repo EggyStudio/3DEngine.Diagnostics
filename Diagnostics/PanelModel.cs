@@ -15,7 +15,10 @@ public enum PanelInput
     /// <summary>A setting's value one step up or to the next choice.</summary>
     Right,
 
-    /// <summary>Opens a page, runs an action, or turns a toggle or a choice to its next.</summary>
+    /// <summary>
+    /// Opens a page, runs an action, turns a toggle or a choice to its next, opens a text's field
+    /// and sets what an open field holds.
+    /// </summary>
     Accept,
 
     /// <summary>Back to the page before, and from the first page out of the panel.</summary>
@@ -53,7 +56,11 @@ public enum PanelRowKind
 /// Whether the setting only reads, always or for now, so the row shows its value and no input
 /// changes it.
 /// </param>
-public sealed record PanelRow(PanelRowKind Kind, string Label, string Value, bool Selected, bool Pending, bool Overridden, bool ReadOnly = false);
+/// <param name="Editing">
+/// The text in the row's field while the row is being edited, or null where it is not, so a host
+/// draws a text field in place of the value.
+/// </param>
+public sealed record PanelRow(PanelRowKind Kind, string Label, string Value, bool Selected, bool Pending, bool Overridden, bool ReadOnly = false, string? Editing = null);
 
 /// <summary>A page of the settings panel, a title and the rows a host gives it.</summary>
 /// <param name="title">The page's title.</param>
@@ -119,6 +126,7 @@ public sealed class PanelModel
 {
     private readonly Registry _registry;
     private readonly List<(PanelPage Page, int Selected)> _path = [];
+    private Setting? _editing;
     private bool _open;
 
     /// <summary>Makes a panel over a registry's settings.</summary>
@@ -142,6 +150,7 @@ public sealed class PanelModel
         {
             var opened = value && !_open;
             _open = value;
+            if (!value) Cancel();
             if (opened) WhenOpened?.Invoke();
         }
     }
@@ -158,6 +167,26 @@ public sealed class PanelModel
     /// set. A subscriber's exception is the host's and reaches the caller of <see cref="Press"/>.
     /// </remarks>
     public event Action<string, Answer>? Answered;
+
+    /// <summary>
+    /// The text in the field of the row being edited, or null where no row is, which a host reads
+    /// to draw a text field for the selected row.
+    /// </summary>
+    /// <remarks>
+    /// A text setting that offers no list of values is edited in a field, as the console takes it
+    /// typed. Accept on its row opens the field with the value in it, <see cref="Edit"/> gives the
+    /// text as it is typed, accept sets it and back puts it away. While a field is open the other
+    /// inputs do nothing, since the field has the keys.
+    /// </remarks>
+    public string? Editing { get; private set; }
+
+    /// <summary>Gives the text of the field as it is typed, where a row is being edited.</summary>
+    /// <param name="text">The field's whole text.</param>
+    public void Edit(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        if (_editing is not null) Editing = text;
+    }
 
     /// <summary>The host's own rows of the first page, under the pages of settings.</summary>
     public PanelPage Root { get; }
@@ -191,7 +220,7 @@ public sealed class PanelModel
             var selected = Selected;
             return entries.Select((entry, i) => entry.Target is Setting setting
                 ? new PanelRow(entry.Kind, entry.Label, setting.StoredText, i == selected, setting.PendingText is not null, setting.Overridden,
-                    setting.ReadOnly || setting.Locked is not null)
+                    setting.ReadOnly || setting.Locked is not null, ReferenceEquals(setting, _editing) ? Editing : null)
                 : new PanelRow(entry.Kind, entry.Label, "", i == selected, false, false)).ToList();
         }
     }
@@ -202,6 +231,12 @@ public sealed class PanelModel
     /// <param name="input">The input.</param>
     public void Press(PanelInput input)
     {
+        if (_editing is not null)
+        {
+            PressEditing(input);
+            return;
+        }
+
         var entries = Entries();
         var at = Selected;
         switch (input)
@@ -231,6 +266,9 @@ public sealed class PanelModel
                         || (choice.Kind == SettingKind.Text && choice.Choices.Count > 0):
                         Take(choice.Name, choice.Move(1));
                         break;
+                    case Setting { Kind: SettingKind.Text, ReadOnly: false, Locked: null } field:
+                        (_editing, Editing) = (field, field.StoredText);
+                        break;
                     case string line:
                         Take(line, _registry.Run(line));
                         break;
@@ -242,6 +280,22 @@ public sealed class PanelModel
                 break;
         }
     }
+
+    // A field open takes accept as the set and back as the way out, and no other input.
+    private void PressEditing(PanelInput input)
+    {
+        if (input == PanelInput.Back)
+            Cancel();
+        else if (input == PanelInput.Accept && _editing is { } setting)
+        {
+            // A refusal leaves the field open with the text typed, and its reason in the answer.
+            var answer = setting.TrySet(Editing ?? "");
+            Take(setting.Name, answer);
+            if (answer.Done) Cancel();
+        }
+    }
+
+    private void Cancel() => (_editing, Editing) = (null, null);
 
     private void Take(string name, Answer answer)
     {

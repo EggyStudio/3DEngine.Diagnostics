@@ -140,6 +140,46 @@ public sealed class ImGuiDrawingTests
     }
 
     [Fact]
+    public void A_Text_Rows_Field_Is_Typed_Into_And_Enter_Writes_The_Setting_While_Escape_Puts_It_Away()
+    {
+        var registry = new Registry();
+        var title = new Setting<string>("window.title", "The title.", "Game", apply: value => value.Length > 8 ? "No more than 8 characters." : null);
+        registry.Add(title);
+        registry.Add(new Setting<bool>("window.vsync", "Whether a frame waits.", true));
+        var panel = new PanelModel(registry) { Open = true };
+        var drawn = new ImGuiPanel(panel);
+        using var frames = new ImGuiFrames(960, 540);
+        void Draw() => drawn.Draw(frames.Size);
+
+        frames.Frame(Draw);
+        frames.Tap(ImGuiKey.Enter, Draw);
+        frames.Tap(ImGuiKey.Enter, Draw);
+        Assert.Equal("Game", panel.Editing);
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+
+        // The Enter that opened the field did not set it, the field opens with its text selected
+        // as ImGui's keyboard focus does, and what is typed goes to the model.
+        Assert.Equal("Game", title.Value);
+        Assert.True(ImGui.GetIO().WantTextInput);
+        frames.Type("Gamer", Draw);
+        Assert.Equal("Gamer", panel.Editing);
+        Assert.Equal("Game", title.Value);
+        frames.Tap(ImGuiKey.Enter, Draw);
+        Assert.Equal(("Gamer", null), (title.Value, panel.Editing));
+
+        // A refused text stays in the field, and Escape puts the field away with nothing written.
+        frames.Tap(ImGuiKey.Enter, Draw);
+        frames.Frame(Draw);
+        frames.Type("Far too long", Draw);
+        frames.Tap(ImGuiKey.Enter, Draw);
+        Assert.Equal(("Far too long", "Gamer"), (panel.Editing, title.Value));
+        Assert.Equal(Answer.Refused, panel.Answer?.Code);
+        frames.Tap(ImGuiKey.Escape, Draw);
+        Assert.Equal((null, "Gamer", "window"), (panel.Editing, title.Value, panel.Title));
+    }
+
+    [Fact]
     public void The_Panel_Is_Steered_By_ImGuis_Arrows_Enter_And_Escape()
     {
         var registry = Make();

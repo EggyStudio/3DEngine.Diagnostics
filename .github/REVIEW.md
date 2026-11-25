@@ -253,3 +253,9 @@ is wanted in the panel.
 Item 13, done. `Setting.Order`, an `int?` set at construction, puts a setting ahead of those with
 none on the page the registry makes for its group, by that number and then by name. The console's
 listing and completion stay by name, and a page a host builds lists its rows as they are added.
+
+Item 12's open question, done. A text setting with no offer is edited in a field in the panel.
+`PanelModel.Editing` (`string?`) is the field's text while a row is edited, `PanelModel.Edit(string)`
+gives it as typed, `PanelRow.Editing` marks the row, accept sets it and back puts it away. A refused
+text leaves the field open with its reason, and a row that only reads opens none. `ImGuiPanel` draws
+the field and gives it the keyboard. Tests write the setting from the model and through ImGui's keys.

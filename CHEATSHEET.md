@@ -192,11 +192,13 @@ double LowFramesPerSecond { get; init; }                 // The 1% low, the rate
 class PanelModel                                         // The settings panel's content with no drawing, pages of rows steered by six inputs, so arrows and a pad serve alike
 PanelModel(Registry registry, string title = "Settings");  // Makes a panel over a registry's settings
 bool Open { get; set; }                                  // Whether the panel is shown, which the panel's key turns over
+string? Editing { get; }                                 // The text in the field of the row being edited, or null where no row is, which a host reads to draw a text field for the selected row
 PanelPage Root { get; }                                  // The host's own rows of the first page, under the pages of settings
 string Title { get; }                                    // The shown page's title
 int Selected { get; }                                    // The index of the selected row among Rows, or -1 where none can be
 Answer? Answer { get; }                                  // What the last accept or step answered, a refusal's reason among it, or null before any
 IReadOnlyList<PanelRow> Rows { get; }                    // The shown page's rows
+void Edit(string text);                                  // Gives the text of the field as it is typed, where a row is being edited
 void Press(PanelInput input);                            // Takes an input
 event Action<string, Answer>? Answered;                  // Raised for each answer the panel gets, a setting's step or toggle and an action's line alike, with the setting's name or the action's line and the answer, so a host logs what was moved and the Error of an action that threw
 
@@ -209,7 +211,7 @@ PanelPage AddPage(PanelPage page);                       // Adds a row that open
 PanelPage AddText(string text);                          // Adds a line of text
 
 record PanelRow                                          // A row of the settings panel as it is drawn
-PanelRow(PanelRowKind Kind, string Label, string Value, bool Selected, bool Pending, bool Overridden, bool ReadOnly = false);
+PanelRow(PanelRowKind Kind, string Label, string Value, bool Selected, bool Pending, bool Overridden, bool ReadOnly = false, string? Editing = null);
 PanelRowKind Kind { get; init; }                         // What the row is
 string Label { get; init; }                              // The row's words on the left
 string Value { get; init; }                              // A setting's value as the player set it, on the right, and empty for another row
@@ -217,6 +219,7 @@ bool Selected { get; init; }                             // Whether the row is t
 bool Pending { get; init; }                              // Whether the value takes effect at the next start
 bool Overridden { get; init; }                           // Whether the environment holds the running value, the one shown being kept for the file
 bool ReadOnly { get; init; }                             // Whether the setting only reads, always or for now, so the row shows its value and no input changes it
+string? Editing { get; init; }                           // The text in the row's field while the row is being edited, or null where it is not, so a host draws a text field in place of the value
 
 enum PanelRowKind                                        // What a row of the settings panel is
 Setting = 0,                                             // A setting, its value stepped with left and right
@@ -229,7 +232,7 @@ Up = 0,                                                  // To the row above, pa
 Down = 1,                                                // To the row below, past a row of text, staying at the last
 Left = 2,                                                // A setting's value one step down or to the choice before
 Right = 3,                                               // A setting's value one step up or to the next choice
-Accept = 4,                                              // Opens a page, runs an action, or turns a toggle or a choice to its next
+Accept = 4,                                              // Opens a page, runs an action, turns a toggle or a choice to its next, opens a text's field and sets what an open field holds
 Back = 5,                                                // Back to the page before, and from the first page out of the panel
 
 class DiagnosticKeys                                     // The five keys as actions a player rebinds, each a text setting holding a key's name, and what they turn over

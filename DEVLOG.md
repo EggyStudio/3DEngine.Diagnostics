@@ -10,6 +10,7 @@ names the item of .github/REVIEW.md or .github/REVIEW-ARCHIVE.md and the commit 
 
 Commits that day
 
+- `162f7f0` A setting can carry an order that a panel page lists it by.
 - `2b0299e` A text setting offers its choices from a function asked each time, and a setting can be
   left out of the panel.
 - `c8c2694` The settings file keeps the line of a setting a lock refuses, and the README says the

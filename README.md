@@ -178,6 +178,11 @@ It stands on these conventions.
 - A setting with `Setting.Order`, a whole number, stands before those with none on its page in the
   panel, the lowest number at the top and settings of one number by name, so a host puts the row a
   player reaches for first at the top. The console's listing and completion stay by name.
+- A text setting that offers no list of values is edited in a field, as the console takes it
+  typed. Accept on its row opens `PanelModel.Editing` with the value in it, `PanelModel.Edit` gives
+  the text as it is typed, accept sets it, and back puts the field away. A refused text leaves the
+  field open with its reason in `PanelModel.Answer`. `ImGuiPanel` draws the field in place of the
+  value and gives it the keyboard.
 - A setting's environment variable, where it is set to a value the setting takes, gives the running
   value for the whole run. A set is then kept for the file alone, and `Setting.Overridden`, the
   setting's sentence and `list` say so.

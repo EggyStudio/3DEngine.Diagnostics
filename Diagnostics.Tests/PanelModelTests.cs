@@ -193,10 +193,66 @@ public class PanelModelTests
         Press(panel, PanelInput.Left);
         Assert.Equal("1920x1080", panel.Rows[0].Value);
 
-        // A text with no offer has no step, and accept leaves it be.
-        Press(panel, PanelInput.Down, PanelInput.Accept, PanelInput.Right);
+        // A text with no offer has no step, and accept opens a field for it.
+        Press(panel, PanelInput.Down, PanelInput.Right);
         Assert.Equal("Game", panel.Rows[1].Value);
         Assert.Equal(Answer.BadArgument, panel.Answer?.Code);
+        Assert.Null(panel.Editing);
+    }
+
+    [Fact]
+    public void A_Text_Row_With_No_Offer_Opens_A_Field_That_Writes_The_Setting_And_Back_Puts_It_Away()
+    {
+        var registry = new Registry();
+        registry.Add(new Setting<string>("window.title", "The title.", "Game",
+            apply: value => value.Length > 8 ? "No more than 8 characters." : null));
+        registry.Add(new Setting<string>("window.icon", "The icon.", "a.png") { ReadOnly = true });
+        registry.Add(new Setting<bool>("window.vsync", "Whether a frame waits.", true));
+        var panel = new PanelModel(registry);
+        Press(panel, PanelInput.Accept);
+        Assert.Equal(["icon", "title", "vsync"], panel.Rows.Select(row => row.Label));
+
+        // A row that only reads has no field.
+        Press(panel, PanelInput.Accept);
+        Assert.Null(panel.Editing);
+        Press(panel, PanelInput.Down, PanelInput.Accept);
+        Assert.Equal("Game", panel.Editing);
+        Assert.Equal("Game", panel.Rows[1].Editing);
+        Assert.Null(panel.Rows[0].Editing);
+
+        // The field has the keys, so the other inputs do nothing, and the text is only a draft.
+        panel.Edit("Gamer");
+        Press(panel, PanelInput.Down, PanelInput.Left, PanelInput.Right);
+        Assert.Equal(("Gamer", 1), (panel.Editing, panel.Selected));
+        Assert.Equal("Game", panel.Rows[1].Value);
+        Assert.Equal("Game", ((Setting<string>)registry.FindSetting("window.title")!).Value);
+
+        // Accept writes it, and the field is closed.
+        Press(panel, PanelInput.Accept);
+        Assert.Equal(("Gamer", null), (panel.Rows[1].Value, panel.Editing));
+        Assert.Equal("Gamer", ((Setting<string>)registry.FindSetting("window.title")!).Value);
+        Assert.True(panel.Answer?.Done);
+
+        // A refused text leaves the field open with its reason and the setting as it was.
+        Press(panel, PanelInput.Accept);
+        panel.Edit("Far too long");
+        Press(panel, PanelInput.Accept);
+        Assert.Equal(("Far too long", "Gamer"), (panel.Editing, panel.Rows[1].Value));
+        Assert.Equal((Answer.Refused, "No more than 8 characters."), (panel.Answer?.Code, panel.Answer?.Text));
+
+        // Back puts the field away without a write, and a second leaves the page.
+        Press(panel, PanelInput.Back);
+        Assert.Equal(("Gamer", null, "window"), (panel.Rows[1].Value, panel.Editing, panel.Title));
+        Press(panel, PanelInput.Back);
+        Assert.Equal("Settings", panel.Title);
+
+        // Edit with no field open does nothing, and closing the panel puts a field away.
+        panel.Edit("x");
+        Assert.Null(panel.Editing);
+        Press(panel, PanelInput.Accept, PanelInput.Down, PanelInput.Accept);
+        Assert.NotNull(panel.Editing);
+        panel.Open = false;
+        Assert.Null(panel.Editing);
     }
 
     [Fact]
