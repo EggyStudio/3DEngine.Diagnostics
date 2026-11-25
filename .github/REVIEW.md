@@ -144,6 +144,13 @@ documents, the skeleton, the design, the code, then the engines taking it.
     stay by name. Tests hold a page with mixed orders, equals falling back to the name, and the
     console's listing unchanged. The cheatsheet and the README follow, and no host is named.
 
+14. **The panel scrolls to keep the selected row in view.** Seen on 2026-11-25 in the settings panel
+    on a long list, its vertical scroll bar below the visible rows, where moving the selection down
+    past the last visible row leaves the list where it was and the selected row out of sight. The
+    panel scrolls so the selected row is always visible, at the bottom edge when moving down and the
+    top edge when moving up, by keys and by the pad alike; a test of the model's visible window
+    following the selection. One commit, small.
+
 ## Verdicts
 
 None yet.
@@ -259,3 +266,9 @@ Item 12's open question, done. A text setting with no offer is edited in a field
 gives it as typed, `PanelRow.Editing` marks the row, accept sets it and back puts it away. A refused
 text leaves the field open with its reason, and a row that only reads opens none. `ImGuiPanel` draws
 the field and gives it the keyboard. Tests write the setting from the model and through ImGui's keys.
+
+Item 14, done. `PanelModel.Visible` is how many rows a host shows, 0 for all, and `PanelModel.Top`
+is the first row shown, which follows the selection by the least it can, one down at the last row
+and one up at the first, by keys and by the pad alike, and which each page keeps. `ImGuiPanel` sets
+the count from its window, draws only those rows, so no scroll bar stands, and says which rows of
+how many it shows. Tests hold the model's window and the ImGui panel on a long page by both inputs.

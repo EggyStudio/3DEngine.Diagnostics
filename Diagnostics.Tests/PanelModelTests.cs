@@ -331,4 +331,41 @@ public class PanelModelTests
         Press(panel, PanelInput.Left);
         Assert.Equal("5", panel.Rows[1].Value);
     }
+
+    [Fact]
+    public void The_Visible_Window_Follows_The_Selection_Down_To_Its_Last_Row_And_Up_To_Its_First()
+    {
+        var (panel, _) = Make();
+        for (var i = 0; i < 10; i++) panel.Root.AddAction($"Row {i}", "game.quit");
+        var rows = panel.Rows.Count;
+
+        // With no count given every row is shown, and the window is the whole page.
+        Assert.Equal((0, 0), (panel.Visible, panel.Top));
+        panel.Visible = 4;
+        Assert.Equal(0, panel.Top);
+
+        // Down inside the window leaves it, and past its last row moves it down by one.
+        Press(panel, PanelInput.Down, PanelInput.Down, PanelInput.Down);
+        Assert.Equal((3, 0), (panel.Selected, panel.Top));
+        Press(panel, PanelInput.Down);
+        Assert.Equal((4, 1), (panel.Selected, panel.Top));
+        Press(panel, PanelInput.Down, PanelInput.Down, PanelInput.Down);
+        Assert.Equal((7, 4), (panel.Selected, panel.Top));
+
+        // The last row is the window's last, and the window never runs past the page.
+        for (var i = 0; i < rows; i++) panel.Press(PanelInput.Down);
+        Assert.Equal((rows - 1, rows - 4), (panel.Selected, panel.Top));
+
+        // Up inside the window leaves it, and past its first row moves it up by one.
+        Press(panel, PanelInput.Up, PanelInput.Up, PanelInput.Up);
+        Assert.Equal((rows - 4, rows - 4), (panel.Selected, panel.Top));
+        Press(panel, PanelInput.Up);
+        Assert.Equal((rows - 5, rows - 5), (panel.Selected, panel.Top));
+
+        // A window made smaller keeps the selected row in it, and a page holds its own place.
+        panel.Visible = 2;
+        Assert.InRange(panel.Selected - panel.Top, 0, 1);
+        panel.Visible = 0;
+        Assert.Equal(0, panel.Top);
+    }
 }

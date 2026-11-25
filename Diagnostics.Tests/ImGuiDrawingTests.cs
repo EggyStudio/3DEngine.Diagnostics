@@ -140,6 +140,41 @@ public sealed class ImGuiDrawingTests
     }
 
     [Fact]
+    public void A_Long_Page_Shows_What_Fits_The_Window_And_Keeps_The_Selected_Row_In_It_By_Keys_And_Pad()
+    {
+        var registry = new Registry();
+        var panel = new PanelModel(registry) { Open = true };
+        for (var i = 0; i < 30; i++) panel.Root.AddAction($"Row {i}", "nothing");
+        var drawn = new ImGuiPanel(panel);
+        using var frames = new ImGuiFrames(640, 240);
+        void Draw() => drawn.Draw(frames.Size);
+
+        frames.Frame(Draw);
+        frames.Frame(Draw);
+        var visible = panel.Visible;
+        Assert.InRange(visible, 3, 29);
+
+        // Down by the keys and by the pad's direction alike, the selected row always in the window.
+        foreach (var key in new[] { ImGuiKey.DownArrow, ImGuiKey.GamepadDpadDown })
+            for (var i = 0; i < 12; i++)
+            {
+                frames.Tap(key, Draw);
+                Assert.InRange(panel.Selected, panel.Top, panel.Top + visible - 1);
+            }
+
+        Assert.Equal(24, panel.Selected);
+        Assert.Equal(24 - visible + 1, panel.Top);
+        foreach (var key in new[] { ImGuiKey.UpArrow, ImGuiKey.GamepadDpadUp })
+            for (var i = 0; i < 24; i++)
+            {
+                frames.Tap(key, Draw);
+                Assert.InRange(panel.Selected, panel.Top, panel.Top + visible - 1);
+            }
+
+        Assert.Equal((0, 0), (panel.Selected, panel.Top));
+    }
+
+    [Fact]
     public void A_Text_Rows_Field_Is_Typed_Into_And_Enter_Writes_The_Setting_While_Escape_Puts_It_Away()
     {
         var registry = new Registry();

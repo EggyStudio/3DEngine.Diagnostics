@@ -198,6 +198,8 @@ string Title { get; }                                    // The shown page's tit
 int Selected { get; }                                    // The index of the selected row among Rows, or -1 where none can be
 Answer? Answer { get; }                                  // What the last accept or step answered, a refusal's reason among it, or null before any
 IReadOnlyList<PanelRow> Rows { get; }                    // The shown page's rows
+int Visible { get; set; }                                // How many rows the host shows at once, or 0 where it shows them all, which is the default
+int Top { get; }                                         // The index among Rows of the first row shown, 0 where Visible is 0 or the page fits
 void Edit(string text);                                  // Gives the text of the field as it is typed, where a row is being edited
 void Press(PanelInput input);                            // Takes an input
 event Action<string, Answer>? Answered;                  // Raised for each answer the panel gets, a setting's step or toggle and an action's line alike, with the setting's name or the action's line and the answer, so a host logs what was moved and the Error of an action that threw

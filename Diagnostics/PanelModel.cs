@@ -125,7 +125,7 @@ public sealed class PanelPage(string title)
 public sealed class PanelModel
 {
     private readonly Registry _registry;
-    private readonly List<(PanelPage Page, int Selected)> _path = [];
+    private readonly List<(PanelPage Page, int Selected, int Top)> _path = [];
     private Setting? _editing;
     private bool _open;
 
@@ -226,6 +226,47 @@ public sealed class PanelModel
     }
 
     private int _rootSelected;
+    private int _rootTop;
+    private int _visible;
+
+    /// <summary>
+    /// How many rows the host shows at once, or 0 where it shows them all, which is the default.
+    /// </summary>
+    /// <remarks>
+    /// A host that cannot show a long page whole gives the count it can, and draws the rows from
+    /// <see cref="Top"/> that many, so the selected row stays among them.
+    /// </remarks>
+    public int Visible
+    {
+        get => _visible;
+        set => _visible = value >= 0 ? value : throw new ArgumentOutOfRangeException(nameof(value));
+    }
+
+    /// <summary>
+    /// The index among <see cref="Rows"/> of the first row shown, 0 where <see cref="Visible"/> is
+    /// 0 or the page fits.
+    /// </summary>
+    /// <remarks>
+    /// The window of <see cref="Visible"/> rows from here follows the selection by the least it
+    /// can, so a step down past its last row moves it down one and a step up past its first row
+    /// moves it up one, by keys and by a pad alike, and a page keeps its place while the player is
+    /// on another and when it is shown again.
+    /// </remarks>
+    public int Top
+    {
+        get
+        {
+            var top = _path.Count == 0 ? _rootTop : _path[^1].Top;
+            if (_visible == 0) return 0;
+            var selected = Selected;
+            top = Math.Clamp(top, 0, Math.Max(0, Entries().Count - _visible));
+            if (selected >= 0 && selected < top) top = selected;
+            else if (selected >= top + _visible) top = selected - _visible + 1;
+            if (_path.Count == 0) _rootTop = top;
+            else _path[^1] = (_path[^1].Page, _path[^1].Selected, top);
+            return top;
+        }
+    }
 
     /// <summary>Takes an input.</summary>
     /// <param name="input">The input.</param>
@@ -273,7 +314,7 @@ public sealed class PanelModel
                         Take(line, _registry.Run(line));
                         break;
                     case PanelPage page:
-                        _path.Add((page, 0));
+                        _path.Add((page, 0, 0));
                         break;
                 }
 
@@ -306,7 +347,7 @@ public sealed class PanelModel
     private void Select(int index)
     {
         if (_path.Count == 0) _rootSelected = index;
-        else _path[^1] = (_path[^1].Page, index);
+        else _path[^1] = (_path[^1].Page, index, _path[^1].Top);
     }
 
     // The selected row is held to the page as it stands, since its settings can have changed, and

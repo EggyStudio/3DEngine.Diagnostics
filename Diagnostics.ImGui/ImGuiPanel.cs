@@ -58,6 +58,11 @@ public sealed class ImGuiPanel(PanelModel model)
             return;
         }
 
+        // The rows shown are what fits in four fifths of the host's window under the title and
+        // above the line of a refusal, counted by the taller of a row's two heights, a field's.
+        var room = window.Y * 0.8f - ImGui.GetStyle().WindowPadding.Y * 2f - ImGui.GetTextLineHeightWithSpacing() * 4f;
+        _model.Visible = Math.Max(3, (int)(room / ImGui.GetFrameHeightWithSpacing()));
+
         // A field that is open has the keyboard, and Escape is the one key the panel still reads.
         if (ReadsKeys && _model.Editing is not null)
         {
@@ -73,6 +78,7 @@ public sealed class ImGuiPanel(PanelModel model)
         if (!_model.Open) return;
 
         var rows = _model.Rows;
+        var top = _model.Top;
         ImGui.SetNextWindowPos(window / 2, ImGuiCond.Always, new Vector2(0.5f, 0.5f));
         ImGui.SetNextWindowSize(new Vector2(MathF.Min(Width, window.X), 0f), ImGuiCond.Always);
         using var look = NeutralLook.Push();
@@ -81,9 +87,18 @@ public sealed class ImGuiPanel(PanelModel model)
         if (ImGui.Begin("Panel##diagnostics", Window))
         {
             ImGui.TextUnformatted(_model.Title);
+            var shown = Math.Min(rows.Count - top, _model.Visible);
+            if (shown < rows.Count)
+            {
+                // Which rows of how many are shown, where the page is longer than the window.
+                var place = $"{top + 1}-{top + shown} of {rows.Count}";
+                ImGui.SameLine(MathF.Max(0f, ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize(place).X));
+                ImGui.TextDisabled(place);
+            }
+
             ImGui.Separator();
             var fielded = false;
-            foreach (var row in rows) fielded |= Row(row);
+            for (var i = top; i < top + shown; i++) fielded |= Row(rows[i]);
             _fielded = fielded;
             if (_model.Answer is { Done: false } refused)
             {

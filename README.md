@@ -183,6 +183,10 @@ It stands on these conventions.
   the text as it is typed, accept sets it, and back puts the field away. A refused text leaves the
   field open with its reason in `PanelModel.Answer`. `ImGuiPanel` draws the field in place of the
   value and gives it the keyboard.
+- A page longer than the host's window is shown in part. A host gives `PanelModel.Visible`, how
+  many rows it shows, and draws that many from `PanelModel.Top`, which follows the selection by
+  the least it can, down at the last row and up at the first, by keys and by a pad alike.
+  `ImGuiPanel` sets the count from its window and says which rows of how many it shows.
 - A setting's environment variable, where it is set to a value the setting takes, gives the running
   value for the whole run. A set is then kept for the file alone, and `Setting.Overridden`, the
   setting's sentence and `list` say so.
